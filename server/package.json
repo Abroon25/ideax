@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "IdeaX Backend API",
   "main": "src/app.js",
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  },
   "scripts": {
     "start": "node src/app.js"
   },
