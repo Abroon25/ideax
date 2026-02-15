@@ -1,0 +1,14 @@
+{
+  "name": "ideax",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "cd server && node src/app.js",
+    "build": "cd server && npm install && npx prisma generate && npx prisma db push --accept-data-loss",
+    "postinstall": "cd server && npm install",
+    "seed": "cd server && node prisma/seed.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
