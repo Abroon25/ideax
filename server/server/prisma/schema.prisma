@@ -1,0 +1,298 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Tier {
+  FREE
+  BASIC
+  PREMIUM
+}
+
+enum MonetizeType {
+  NONE
+  MONEY
+  PROFIT_SHARE
+  SHAREHOLDING
+  PARTNERSHIP
+}
+
+enum IdeaCategory {
+  MOVIES
+  BUSINESS
+  STARTUPS
+  APP_DEVELOPMENT
+  WEBSITE_DEVELOPMENT
+  TECHNOLOGY
+  HEALTHCARE
+  EDUCATION
+  FINANCE
+  ENTERTAINMENT
+  FOOD
+  TRAVEL
+  FASHION
+  SPORTS
+  OTHER
+}
+
+enum TransactionType {
+  TIER_UPGRADE
+  PAY_PER_POST_CHARS
+  PAY_PER_POST_STORAGE
+  PAY_PER_POST_MONETIZE
+  IDEA_PURCHASE
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum NotificationType {
+  LIKE
+  COMMENT
+  FOLLOW
+  IDEA_INTEREST
+  IDEA_PURCHASED
+  TIER_UPGRADED
+  SYSTEM
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  password        String
+  phone           String    @unique
+  username        String    @unique
+  displayName     String
+  bio             String?   @db.VarChar(500)
+  avatar          String?
+  coverImage      String?
+  tier            Tier      @default(FREE)
+  tierExpiresAt   DateTime?
+  isVerified      Boolean   @default(false)
+  isOnboarded     Boolean   @default(false)
+  tourCompleted   Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  ideas           Idea[]
+  likes           Like[]
+  comments        Comment[]
+  bookmarks       Bookmark[]
+  followers       Follow[]        @relation("following")
+  following       Follow[]        @relation("follower")
+  notifications   Notification[]  @relation("recipient")
+  sentNotifs      Notification[]  @relation("sender")
+  transactions    Transaction[]
+  userGenres      UserGenre[]
+  ideaInterests   IdeaInterest[]
+  refreshTokens   RefreshToken[]
+
+  @@index([email])
+  @@index([username])
+  @@index([tier])
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  token       String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Genre {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  slug        String       @unique
+  icon        String?
+  category    IdeaCategory
+  description String?
+  createdAt   DateTime     @default(now())
+
+  userGenres  UserGenre[]
+  ideas       Idea[]
+}
+
+model UserGenre {
+  id        String   @id @default(uuid())
+  userId    String
+  genreId   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  genre     Genre    @relation(fields: [genreId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, genreId])
+  @@index([userId])
+}
+
+model Idea {
+  id              String        @id @default(uuid())
+  content         String        @db.Text
+  charCount       Int
+  authorId        String
+  genreId         String
+  category        IdeaCategory
+  monetizeType    MonetizeType  @default(NONE)
+  askingPrice     Decimal?      @db.Decimal(12, 2)
+  profitSharePct  Decimal?      @db.Decimal(5, 2)
+  shareHoldingPct Decimal?      @db.Decimal(5, 2)
+  isSold          Boolean       @default(false)
+  soldTo          String?
+  soldAt          DateTime?
+  soldPrice       Decimal?      @db.Decimal(12, 2)
+  isPublic        Boolean       @default(true)
+  isPinned        Boolean       @default(false)
+  viewCount       Int           @default(0)
+  extraCharsPaid  Int           @default(0)
+  extraStoragePaid Int          @default(0)
+  monetizePaid    Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  author          User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  genre           Genre         @relation(fields: [genreId], references: [id])
+  attachments     Attachment[]
+  likes           Like[]
+  comments        Comment[]
+  bookmarks       Bookmark[]
+  interests       IdeaInterest[]
+
+  @@index([authorId])
+  @@index([genreId])
+  @@index([category])
+  @@index([monetizeType])
+  @@index([createdAt(sort: Desc)])
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  ideaId       String
+  fileName     String
+  fileType     String
+  fileSize     Int
+  fileUrl      String
+  cloudinaryId String?
+  idea         Idea     @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@index([ideaId])
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  userId    String
+  ideaId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea      Idea     @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, ideaId])
+  @@index([ideaId])
+}
+
+model Comment {
+  id        String    @id @default(uuid())
+  content   String    @db.VarChar(1000)
+  userId    String
+  ideaId    String
+  parentId  String?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea      Idea      @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  parent    Comment?  @relation("replies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("replies")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([ideaId])
+  @@index([parentId])
+}
+
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  ideaId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea      Idea     @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, ideaId])
+  @@index([userId])
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  follower    User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model IdeaInterest {
+  id          String   @id @default(uuid())
+  ideaId      String
+  userId      String
+  message     String?  @db.VarChar(2000)
+  offerAmount Decimal? @db.Decimal(12, 2)
+  isAccepted  Boolean  @default(false)
+  isRejected  Boolean  @default(false)
+  idea        Idea     @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([ideaId, userId])
+  @@index([ideaId])
+}
+
+model Transaction {
+  id              String            @id @default(uuid())
+  userId          String
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+  amount          Decimal           @db.Decimal(12, 2)
+  currency        String            @default("INR")
+  razorpayOrderId String?
+  razorpayPayId   String?
+  razorpaySign    String?
+  metadata        Json?
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([razorpayOrderId])
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  type        NotificationType
+  recipientId String
+  senderId    String?
+  message     String
+  ideaId      String?
+  isRead      Boolean          @default(false)
+  recipient   User             @relation("recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  sender      User?            @relation("sender", fields: [senderId], references: [id], onDelete: SetNull)
+  createdAt   DateTime         @default(now())
+
+  @@index([recipientId])
+  @@index([recipientId, isRead])
+}
