@@ -4,11 +4,7 @@
   "description": "IdeaX Backend API",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "node src/app.js",
-    "postinstall": "npx prisma generate",
-    "db:push": "npx prisma db push",
-    "db:seed": "node prisma/seed.js"
+    "start": "node src/app.js"
   },
   "dependencies": {
     "@prisma/client": "^5.7.0",
@@ -21,14 +17,11 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
-    "multer-storage-cloudinary": "^4.0.0",
     "razorpay": "^2.9.2",
     "socket.io": "^4.7.2",
     "resend": "^2.0.0",
     "uuid": "^9.0.0",
-    "morgan": "^1.10.0"
-  },
-  "devDependencies": {
+    "morgan": "^1.10.0",
     "prisma": "^5.7.0"
   },
   "engines": {
