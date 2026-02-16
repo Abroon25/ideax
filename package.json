@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "postinstall": "cd server && npm install",
-    "build": "cd server && npx prisma generate --schema=./prisma/schema.prisma && npx prisma db push --schema=./prisma/schema.prisma --accept-data-loss",
-    "start": "cd server && node src/app.js",
+    "build": "cd server && npx prisma generate --schema=./prisma/schema.prisma",
+    "start": "cd server && npx prisma db push --schema=./prisma/schema.prisma --accept-data-loss && node src/app.js",
     "seed": "cd server && node prisma/seed.js"
   },
   "engines": {
