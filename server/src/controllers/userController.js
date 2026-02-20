@@ -109,4 +109,54 @@ const getBookmarks = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-module.exports = { getProfile, updateProfile, completeTour, followUser, getUserIdeas, getBookmarks };
+const searchUsers = async (req, res, next) => {
+  try {
+    const { q, page = 1, limit = 20 } = req.query;
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({ error: 'Search query must be at least 2 characters' });
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const searchTerm = q.trim();
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where: {
+          OR: [
+            { displayName: { contains: searchTerm, mode: 'insensitive' } },
+            { username: { contains: searchTerm, mode: 'insensitive' } },
+          ],
+        },
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatar: true,
+          bio: true,
+          tier: true,
+          _count: { select: { ideas: true, followers: true } },
+        },
+        orderBy: { followers: { _count: 'desc' } },
+        skip,
+        take: parseInt(limit),
+      }),
+      prisma.user.count({
+        where: {
+          OR: [
+            { displayName: { contains: searchTerm, mode: 'insensitive' } },
+            { username: { contains: searchTerm, mode: 'insensitive' } },
+          ],
+        },
+      }),
+    ]);
+
+    res.json({
+      users,
+      query: searchTerm,
+      pagination: { page: parseInt(page), total, hasMore: skip + parseInt(limit) < total },
+    });
+  } catch (error) { next(error); }
+};
+
+module.exports = { getProfile, updateProfile, completeTour, followUser, getUserIdeas, getBookmarks, searchUsers };
