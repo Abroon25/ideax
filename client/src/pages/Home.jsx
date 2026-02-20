@@ -149,14 +149,15 @@ export default function Home() {
   ];
 
   const navLinks = [
-    { to: '/', icon: HiOutlineHome, label: 'Home' },
-    { to: '/explore', icon: HiOutlineHashtag, label: 'Explore' },
-    { to: '/notifications', icon: HiOutlineBell, label: 'Notifications' },
-    { to: '/bookmarks', icon: HiOutlineBookmark, label: 'Bookmarks' },
-    { to: '/tiers', icon: HiOutlineSparkles, label: 'Tiers' },
-    { to: '/profile/' + user?.username, icon: HiOutlineUser, label: 'Profile' },
-    { to: '/settings', icon: HiOutlineCog, label: 'Settings' },
-  ];
+  { to: '/', icon: HiOutlineHome, label: 'Home' },
+  { to: '/search', icon: HiOutlineSearch, label: 'Search' },
+  { to: '/explore', icon: HiOutlineHashtag, label: 'Explore' },
+  { to: '/notifications', icon: HiOutlineBell, label: 'Notifications' },
+  { to: '/bookmarks', icon: HiOutlineBookmark, label: 'Bookmarks' },
+  { to: '/tiers', icon: HiOutlineSparkles, label: 'Tiers' },
+  { to: '/profile/' + user?.username, icon: HiOutlineUser, label: 'Profile' },
+  { to: '/settings', icon: HiOutlineCog, label: 'Settings' },
+];
 
   return (
     <div className="flex justify-center min-h-screen bg-dark-950">
