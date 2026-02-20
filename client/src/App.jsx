@@ -1,3 +1,4 @@
+import Search from './pages/Search';
 import Bookmarks from './pages/Bookmarks';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
@@ -24,6 +25,7 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
       <Route path="/bookmarks" element={<ProtectedRoute><Bookmarks /></ProtectedRoute>} />
       <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
       <Route path="/signup" element={user ? <Navigate to="/" /> : <Signup />} />
