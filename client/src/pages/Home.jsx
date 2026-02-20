@@ -1,3 +1,6 @@
+import { HiOutlineHome, HiOutlineHashtag, HiOutlineBell, HiOutlineBookmark, HiOutlineUser, HiOutlineCog,
+  HiOutlineSparkles, HiOutlineLightBulb, HiOutlineHeart, HiHeart, HiOutlineChatAlt2, HiOutlineBookmark as HiOutlineBM,
+  HiBookmark, HiOutlineEye, HiOutlineShare, HiOutlineCash, HiOutlinePhotograph, HiOutlineChartBar, HiOutlineSearch } from 'react-icons/hi';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
