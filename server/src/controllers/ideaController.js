@@ -252,4 +252,58 @@ const getIdeaInterests = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-module.exports = { createIdea, getFeed, getIdeaById, deleteIdea, likeIdea, bookmarkIdea, addComment, expressInterest, getIdeaInterests };
+const searchIdeas = async (req, res, next) => {
+  try {
+    const { q, category, monetizeType, page = 1, limit = 20 } = req.query;
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({ error: 'Search query must be at least 2 characters' });
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const searchTerm = q.trim();
+
+    const where = {
+      isPublic: true,
+      OR: [
+        { content: { contains: searchTerm, mode: 'insensitive' } },
+        { author: { displayName: { contains: searchTerm, mode: 'insensitive' } } },
+        { author: { username: { contains: searchTerm, mode: 'insensitive' } } },
+        { genre: { name: { contains: searchTerm, mode: 'insensitive' } } },
+      ],
+    };
+
+    if (category) where.category = category;
+    if (monetizeType) where.monetizeType = monetizeType;
+
+    const [ideas, total] = await Promise.all([
+      prisma.idea.findMany({
+        where,
+        include: {
+          author: { select: { id: true, username: true, displayName: true, avatar: true, tier: true } },
+          genre: true,
+          attachments: true,
+          _count: { select: { likes: true, comments: true, bookmarks: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: parseInt(limit),
+      }),
+      prisma.idea.count({ where }),
+    ]);
+
+    res.json({
+      ideas,
+      query: searchTerm,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+        hasMore: skip + parseInt(limit) < total,
+      },
+    });
+  } catch (error) { next(error); }
+};
+
+module.exports = { createIdea, getFeed, getIdeaById, deleteIdea, likeIdea, bookmarkIdea, addComment, expressInterest, getIdeaInterests, searchIdeas };
