@@ -151,6 +151,47 @@ const getIdeaById = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+const updateIdea = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { content, monetizeType, askingPrice, profitSharePct, shareHoldingPct } = req.body;
+    const userId = req.user.id;
+
+    const idea = await prisma.idea.findUnique({ where: { id } });
+    if (!idea) return res.status(404).json({ error: 'Idea not found' });
+    if (idea.authorId !== userId) return res.status(403).json({ error: 'Not authorized' });
+    if (idea.isSold) return res.status(400).json({ error: 'Cannot edit a sold idea' });
+
+    const tierLimits = TIER_LIMITS[req.user.tier];
+    if (content && content.length > tierLimits.maxChars + (idea.extraCharsPaid * PAY_PER_POST.charsUnit)) {
+      return res.status(400).json({ error: 'Content exceeds character limit' });
+    }
+
+    const updateData = {};
+    if (content !== undefined) {
+      updateData.content = content.trim();
+      updateData.charCount = content.trim().length;
+    }
+    if (monetizeType !== undefined) updateData.monetizeType = monetizeType;
+    if (askingPrice !== undefined) updateData.askingPrice = askingPrice ? parseFloat(askingPrice) : null;
+    if (profitSharePct !== undefined) updateData.profitSharePct = profitSharePct ? parseFloat(profitSharePct) : null;
+    if (shareHoldingPct !== undefined) updateData.shareHoldingPct = shareHoldingPct ? parseFloat(shareHoldingPct) : null;
+
+    const updated = await prisma.idea.update({
+      where: { id },
+      data: updateData,
+      include: {
+        author: { select: { id: true, username: true, displayName: true, avatar: true, tier: true } },
+        genre: true,
+        attachments: true,
+        _count: { select: { likes: true, comments: true, bookmarks: true } },
+      },
+    });
+
+    res.json({ message: 'Idea updated', idea: updated });
+  } catch (error) { next(error); }
+};
+
 const deleteIdea = async (req, res, next) => {
   try {
     const idea = await prisma.idea.findUnique({ where: { id: req.params.id }, include: { attachments: true } });
