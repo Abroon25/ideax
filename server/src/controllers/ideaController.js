@@ -347,4 +347,4 @@ const searchIdeas = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-module.exports = { createIdea, getFeed, getIdeaById, deleteIdea, likeIdea, bookmarkIdea, addComment, expressInterest, getIdeaInterests, searchIdeas };
+module.exports = { createIdea, getFeed, getIdeaById, updateIdea, deleteIdea, likeIdea, bookmarkIdea, addComment, expressInterest, getIdeaInterests, searchIdeas };
