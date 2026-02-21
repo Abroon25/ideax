@@ -13,29 +13,21 @@ import Settings from './pages/Settings';
 import IdeaDetailPage from './pages/IdeaDetailPage';
 import Search from './pages/Search';
 import Bookmarks from './pages/Bookmarks';
+import ForgotPassword from './pages/ForgotPassword';
+import NotFound from './pages/NotFound';
 
 function ProtectedRoute({ children, withLayout }) {
   var auth = useAuth();
-  var user = auth.user;
-  var loading = auth.loading;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-dark-950">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold"><span className="text-primary-500">Idea</span>X 💡</h1>
-          <div className="mt-4 w-8 h-8 border-2 border-dark-600 border-t-primary-500 rounded-full animate-spin mx-auto" />
-        </div>
+  if (auth.loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-dark-950">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold"><span className="text-primary-500">Idea</span>X 💡</h1>
+        <div className="mt-4 w-8 h-8 border-2 border-dark-600 border-t-primary-500 rounded-full animate-spin mx-auto" />
       </div>
-    );
-  }
-
-  if (!user) return <Navigate to="/login" replace />;
-
-  if (withLayout) {
-    return <Layout>{children}</Layout>;
-  }
-
+    </div>
+  );
+  if (!auth.user) return <Navigate to="/login" replace />;
+  if (withLayout) return <Layout>{children}</Layout>;
   return children;
 }
 
@@ -47,6 +39,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
       <Route path="/signup" element={user ? <Navigate to="/" /> : <Signup />} />
+      <Route path="/forgot-password" element={user ? <Navigate to="/" /> : <ForgotPassword />} />
       <Route path="/genres" element={<ProtectedRoute><GenreSelection /></ProtectedRoute>} />
       <Route path="/" element={<ProtectedRoute withLayout>{user && !user.isOnboarded ? <Navigate to="/genres" /> : <Home />}</ProtectedRoute>} />
       <Route path="/search" element={<ProtectedRoute withLayout><Search /></ProtectedRoute>} />
@@ -57,7 +50,7 @@ export default function App() {
       <Route path="/profile/:username" element={<ProtectedRoute withLayout><Profile /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute withLayout><Settings /></ProtectedRoute>} />
       <Route path="/idea/:id" element={<ProtectedRoute withLayout><IdeaDetailPage /></ProtectedRoute>} />
-      <Route path="*" element={<Navigate to="/" />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
