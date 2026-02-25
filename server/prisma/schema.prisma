@@ -97,6 +97,7 @@ model User {
   userGenres      UserGenre[]
   ideaInterests   IdeaInterest[]
   refreshTokens   RefreshToken[]
+
   conversations ConversationParticipant[]
   messages      Message[]
 
@@ -327,5 +328,5 @@ model Message {
   createdAt      DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id])
-  sender       User         @relation(fields: [senderId], references: [id])
+  sender       User         @relation("UserMessages", fields: [senderId], references: [id])
 }
