@@ -13,8 +13,10 @@ import Settings from './pages/Settings';
 import IdeaDetailPage from './pages/IdeaDetailPage';
 import Search from './pages/Search';
 import Bookmarks from './pages/Bookmarks';
+import Messages from './pages/Messages';
 import ForgotPassword from './pages/ForgotPassword';
 import NotFound from './pages/NotFound';
+
 
 function ProtectedRoute({ children, withLayout }) {
   var auth = useAuth();
@@ -51,6 +53,7 @@ export default function App() {
       <Route path="/settings" element={<ProtectedRoute withLayout><Settings /></ProtectedRoute>} />
       <Route path="/idea/:id" element={<ProtectedRoute withLayout><IdeaDetailPage /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
+      <Route path="/messages" element={<ProtectedRoute withLayout><Messages /></ProtectedRoute>} />
     </Routes>
   );
 }
