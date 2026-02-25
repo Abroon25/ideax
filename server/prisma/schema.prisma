@@ -101,6 +101,7 @@ model User {
   conversations ConversationParticipant[]
   messages      Message[] @relation("UserMessages")
   reposts       Repost[]
+  badges        Badge[]
 
   @@index([email])
   @@index([username])
