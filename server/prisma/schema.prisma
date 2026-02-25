@@ -100,6 +100,7 @@ model User {
 
   conversations ConversationParticipant[]
   messages      Message[] @relation("UserMessages")
+  reposts       Repost[]
 
   @@index([email])
   @@index([username])
@@ -164,17 +165,22 @@ model Idea {
   extraCharsPaid  Int           @default(0)
   extraStoragePaid Int          @default(0)
   monetizePaid    Boolean       @default(false)
+  parentIdeaId    String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
   author          User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
   genre           Genre         @relation(fields: [genreId], references: [id])
+  parentIdea      Idea?         @relation("Thread", fields: [parentIdeaId], references: [id])
+  replies         Idea[]        @relation("Thread")
   attachments     Attachment[]
   likes           Like[]
   comments        Comment[]
   bookmarks       Bookmark[]
   interests       IdeaInterest[]
-  tags String[]
+  reposts         Repost[]
+  pollOptions     PollOption[]
+  tags            String[]
 
   @@index([authorId])
   @@index([genreId])
@@ -352,7 +358,3 @@ model PollOption {
 
   idea Idea @relation(fields: [ideaId], references: [id])
 }
-
-  parentIdeaId String?
-  parentIdea   Idea? @relation("Thread", fields: [parentIdeaId], references: [id])
-  replies      Idea[] @relation("Thread")
