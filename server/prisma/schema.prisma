@@ -97,6 +97,8 @@ model User {
   userGenres      UserGenre[]
   ideaInterests   IdeaInterest[]
   refreshTokens   RefreshToken[]
+  conversations ConversationParticipant[]
+  messages      Message[]
 
   @@index([email])
   @@index([username])
