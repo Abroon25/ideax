@@ -13,6 +13,7 @@ const genreRoutes = require('./routes/genreRoutes');
 const tierRoutes = require('./routes/tierRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const messageRoutes = require("./routes/messageRoutes")
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -48,6 +49,7 @@ app.use('/api/genres', genreRoutes);
 app.use('/api/tiers', tierRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use("/api/messages", messageRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString(), message: 'IdeaX API is running' });
