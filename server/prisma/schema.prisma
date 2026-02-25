@@ -99,7 +99,7 @@ model User {
   refreshTokens   RefreshToken[]
 
   conversations ConversationParticipant[]
-  messages      Message[]
+  messages      Message[] @relation("UserMessages")
 
   @@index([email])
   @@index([username])
