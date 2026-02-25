@@ -358,3 +358,12 @@ model PollOption {
 
   idea Idea @relation(fields: [ideaId], references: [id])
 }
+
+model Badge {
+  id    String @id @default(uuid())
+  name  String
+  icon  String
+  userId String
+
+  user User @relation(fields: [userId], references: [id])
+}
