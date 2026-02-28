@@ -58,6 +58,26 @@ export default function IdeaDetailPage() {
     }).catch(function(err) { toast.error(err.response ? err.response.data.error : 'Failed'); });
   }
 
+  const handlePurchase = async () => {
+    if (!window.confirm(`Buy this idea for ${formatCurrency(idea.askingPrice)}?`)) return;
+    
+    // 1. Generate NDA
+    try {
+      toast.loading('Generating NDA...', { id: 'purchase' });
+      await api.post('/business/ndas/generate', { ideaId: idea.id });
+      
+      // 2. Mock Razorpay Flow (Since we don't have keys yet)
+      setTimeout(() => {
+        toast.success('Payment Successful! Idea Purchased.', { id: 'purchase' });
+        // Update local state to show as sold
+        setIdea(p => ({ ...p, isSold: true, soldTo: user.id }));
+      }, 2000);
+      
+    } catch (err) {
+      toast.error('Transaction failed', { id: 'purchase' });
+    }
+  };
+
   function handleDelete() {
     if (!window.confirm('Are you sure you want to delete this idea?')) return;
     api.delete('/ideas/' + id).then(function() { toast.success('Idea deleted'); navigate('/'); }).catch(function() { toast.error('Failed'); });
@@ -157,19 +177,38 @@ export default function IdeaDetailPage() {
           </div>
         )}
 
-        {/* Express Interest */}
-        {idea.monetizeType !== 'NONE' && !idea.isOwner && !idea.isSold && (
+        {/* Monetization Actions (Buy / Express Interest) */}
+        {idea.monetizeType !== 'NONE' && !idea.isOwner && (
           <div className="py-4 border-b border-dark-700">
-            <button onClick={function() { setShowInterest(!showInterest); }} className="btn-primary w-full py-3">💰 I'm Interested</button>
-            {showInterest && (
-              <div className="mt-4 space-y-3">
-                <textarea value={interestMsg} onChange={function(e) { setInterestMsg(e.target.value); }} placeholder="Message to creator..." className="input-field" rows={3} />
-                {idea.monetizeType === 'MONEY' && <input type="number" value={offerAmt} onChange={function(e) { setOfferAmt(e.target.value); }} placeholder={'Offer (asking: ' + formatCurrency(idea.askingPrice) + ')'} className="input-field" />}
-                <button onClick={handleInterest} className="btn-primary w-full">Send Interest</button>
+            {idea.isSold ? (
+              <div className="bg-green-900/20 border border-green-900 text-green-400 p-4 rounded-xl text-center font-bold">
+                🔒 Idea Sold & Protected by NDA
               </div>
+            ) : (
+              <>
+                {idea.monetizeType === 'MONEY' && idea.askingPrice ? (
+                  <button onClick={handlePurchase} className="btn-primary w-full py-3 mb-3 bg-green-600 hover:bg-green-700">
+                    <HiOutlineCash className="inline w-5 h-5 mr-2 -mt-1" />
+                    Buy Idea for {formatCurrency(idea.askingPrice)}
+                  </button>
+                ) : null}
+
+                <button onClick={() => setShowInterest(!showInterest)} className="btn-outline w-full py-3">
+                  Negotiate / Express Interest
+                </button>
+
+                {showInterest && (
+                  <div className="mt-4 space-y-3">
+                    <textarea value={interestMsg} onChange={e => setInterestMsg(e.target.value)} placeholder="Message to creator..." className="input-field" rows={3} />
+                    {idea.monetizeType === 'MONEY' && <input type="number" value={offerAmt} onChange={e => setOfferAmt(e.target.value)} placeholder={`Your Offer (asking: ${formatCurrency(idea.askingPrice)})`} className="input-field" />}
+                    <button onClick={handleInterest} className="btn-primary w-full">Send Message</button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
+
 
         {/* Comment Input */}
         <div className="flex gap-3 py-4">
