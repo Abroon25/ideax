@@ -1,5 +1,3 @@
-import Analytics from "./pages/Analytics";
-import AdminDashboard from "./pages/AdminDashboard";
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
@@ -18,6 +16,9 @@ import Bookmarks from './pages/Bookmarks';
 import Messages from './pages/Messages';
 import ForgotPassword from './pages/ForgotPassword';
 import NotFound from './pages/NotFound';
+import Analytics from './pages/Analytics';
+import AdminDashboard from './pages/AdminDashboard';
+
 
 
 function ProtectedRoute({ children, withLayout }) {
