@@ -1,3 +1,5 @@
+import Analytics from "./pages/Analytics";
+import AdminDashboard from "./pages/AdminDashboard";
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
@@ -54,6 +56,8 @@ export default function App() {
       <Route path="/idea/:id" element={<ProtectedRoute withLayout><IdeaDetailPage /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
       <Route path="/messages" element={<ProtectedRoute withLayout><Messages /></ProtectedRoute>} />
+      <Route path="/analytics" element={<ProtectedRoute withLayout><Analytics /></ProtectedRoute>} />
+      <Route path="/admin" element={<ProtectedRoute withLayout><AdminDashboard /></ProtectedRoute>} />
     </Routes>
   );
 }
