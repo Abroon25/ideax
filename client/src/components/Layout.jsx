@@ -13,6 +13,23 @@ import {
   HiOutlineLightBulb
 } from 'react-icons/hi';
 import { HiMagnifyingGlass } from 'react-icons/hi2';
+import { HiOutlineChartBar, HiOutlineShieldCheck } from 'react-icons/hi'; // Add to existing imports
+
+const nav = [
+  { to: "/", icon: HiOutlineHome, label: "Home" },
+  { to: "/explore", icon: HiOutlineHashtag, label: "Explore" },
+  { to: "/notifications", icon: HiOutlineBell, label: "Notifications" },
+  { to: "/bookmarks", icon: HiOutlineBookmark, label: "Bookmarks" },
+  { to: "/analytics", icon: HiOutlineChartBar, label: "Analytics" }, // New
+  { to: "/tiers", icon: HiOutlineSparkles, label: "Tiers" },
+  { to: "/profile/" + (user ? user.username : ""), icon: HiOutlineUser, label: "Profile" },
+  { to: "/settings", icon: HiOutlineCog, label: "Settings" }
+]
+
+// Add Admin conditionally
+if (user && user.role === 'ADMIN') {
+  nav.push({ to: "/admin", icon: HiOutlineShieldCheck, label: "Admin Panel" });
+}
 import api from '../services/api';
 
 function Avatar({ src, name, size }) {
