@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getInitials } from '../utils/helpers';
+import api from '../services/api';
 import {
   HiOutlineHome,
   HiOutlineHashtag,
@@ -16,23 +17,6 @@ import {
 } from 'react-icons/hi';
 import { HiMagnifyingGlass } from 'react-icons/hi2';
 
-
-const nav = [
-  { to: "/", icon: HiOutlineHome, label: "Home" },
-  { to: "/explore", icon: HiOutlineHashtag, label: "Explore" },
-  { to: "/notifications", icon: HiOutlineBell, label: "Notifications" },
-  { to: "/bookmarks", icon: HiOutlineBookmark, label: "Bookmarks" },
-  { to: "/analytics", icon: HiOutlineChartBar, label: "Analytics" }, // New
-  { to: "/tiers", icon: HiOutlineSparkles, label: "Tiers" },
-  { to: "/profile/" + (user ? user.username : ""), icon: HiOutlineUser, label: "Profile" },
-   to: "/settings", icon: HiOutlineCog, label: "Settings" }
-]
-
-// Add Admin conditionally
-if (user && user.role === 'ADMIN') {
-  na{v.push({ to: "/admin", icon: HiOutlineShieldCheck, label: "Admin Panel" });
-}
-import api from '../services/api';
 
 function Avatar({ src, name, size }) {
   var s = size || 'w-10 h-10';
@@ -75,6 +59,10 @@ export default function Layout({ children }) {
     { to: '/profile/' + (user ? user.username : ''), icon: HiOutlineUser, label: 'Profile' },
     { to: '/settings', icon: HiOutlineCog, label: 'Settings' }
   ];
+
+  if (user && user.role === 'ADMIN') {
+    navLinks.push({ to: '/admin', icon: HiOutlineShieldCheck, label: 'Admin Panel' });
+  }
 
   return (
     <div className="flex justify-center min-h-screen bg-dark-950">
