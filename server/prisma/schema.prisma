@@ -76,6 +76,7 @@ model User {
   avatar          String?
   coverImage      String?
   tier            Tier      @default(FREE)
+  role            String    @default("USER")
   tierExpiresAt   DateTime?
   isVerified      Boolean   @default(false)
   isOnboarded     Boolean   @default(false)
@@ -163,6 +164,7 @@ model Idea {
   isPublic        Boolean       @default(true)
   isPinned        Boolean       @default(false)
   viewCount       Int           @default(0)
+  totalEarnings   Decimal       @default(0.00) @db.Decimal(12, 2)
   extraCharsPaid  Int           @default(0)
   extraStoragePaid Int          @default(0)
   monetizePaid    Boolean       @default(false)
@@ -182,6 +184,9 @@ model Idea {
   reposts         Repost[]
   pollOptions     PollOption[]
   tags            String[]
+  transactions    Transaction[]
+  ndas            NDA[]
+
 
   @@index([authorId])
   @@index([genreId])
@@ -278,6 +283,7 @@ model IdeaInterest {
 model Transaction {
   id              String            @id @default(uuid())
   userId          String
+  ideaId          String?
   type            TransactionType
   status          TransactionStatus @default(PENDING)
   amount          Decimal           @db.Decimal(12, 2)
@@ -289,6 +295,11 @@ model Transaction {
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea            Idea?             @relation(fields: [ideaId], references: [id])
+  invoice         Invoice?
+  disputes        Dispute[]
 
   @@index([userId])
   @@index([razorpayOrderId])
@@ -367,4 +378,41 @@ model Badge {
   userId String
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  transactionId String   @unique
+  invoiceUrl    String?  // URL to generated PDF
+  createdAt     DateTime @default(now())
+
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model NDA {
+  id        String   @id @default(uuid())
+  ideaId    String
+  buyerId   String
+  sellerId  String
+  status    String   @default("PENDING") // PENDING, SIGNED
+  signature String?  // Digital signature stamp
+  createdAt DateTime @default(now())
+
+  idea      Idea     @relation(fields: [ideaId], references: [id])
+  buyer     User     @relation("NdaBuyer", fields: [buyerId], references: [id])
+  seller    User     @relation("NdaSeller", fields: [sellerId], references: [id])
+}
+
+model Dispute {
+  id            String   @id @default(uuid())
+  transactionId String
+  raisedById    String
+  reason        String   @db.Text
+  status        String   @default("OPEN") // OPEN, RESOLVED, REFUNDED
+  adminNotes    String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  raisedBy      User        @relation(fields: [raisedById], references: [id])
 }
