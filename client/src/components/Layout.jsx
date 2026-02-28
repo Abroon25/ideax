@@ -15,7 +15,6 @@ import {
   HiOutlineShieldCheck
 } from 'react-icons/hi';
 import { HiMagnifyingGlass } from 'react-icons/hi2';
-import api from '../services/api';
 
 
 const nav = [
