@@ -10,10 +10,13 @@ import {
   HiOutlineUser,
   HiOutlineCog,
   HiOutlineSparkles,
-  HiOutlineLightBulb
+  HiOutlineLightBulb,
+  HiOutlineChartBar,
+  HiOutlineShieldCheck
 } from 'react-icons/hi';
 import { HiMagnifyingGlass } from 'react-icons/hi2';
-import { HiOutlineChartBar, HiOutlineShieldCheck } from 'react-icons/hi'; // Add to existing imports
+import api from '../services/api';
+
 
 const nav = [
   { to: "/", icon: HiOutlineHome, label: "Home" },
@@ -23,12 +26,12 @@ const nav = [
   { to: "/analytics", icon: HiOutlineChartBar, label: "Analytics" }, // New
   { to: "/tiers", icon: HiOutlineSparkles, label: "Tiers" },
   { to: "/profile/" + (user ? user.username : ""), icon: HiOutlineUser, label: "Profile" },
-  { to: "/settings", icon: HiOutlineCog, label: "Settings" }
+   to: "/settings", icon: HiOutlineCog, label: "Settings" }
 ]
 
 // Add Admin conditionally
 if (user && user.role === 'ADMIN') {
-  nav.push({ to: "/admin", icon: HiOutlineShieldCheck, label: "Admin Panel" });
+  na{v.push({ to: "/admin", icon: HiOutlineShieldCheck, label: "Admin Panel" });
 }
 import api from '../services/api';
 
