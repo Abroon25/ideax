@@ -103,10 +103,14 @@ model User {
   messages      Message[] @relation("UserMessages")
   reposts       Repost[]
   badges        Badge[]
+  ndaAsBuyer    NDA[]     @relation("NdaBuyer")      // ← ADD
+  ndaAsSeller   NDA[]     @relation("NdaSeller")     // ← ADD
+  disputes      Dispute[]                             // ← ADD
 
   @@index([email])
   @@index([username])
   @@index([tier])
+
 }
 
 model RefreshToken {
