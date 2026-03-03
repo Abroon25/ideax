@@ -124,9 +124,9 @@ export default function Layout({ children }) {
                   {savedAccounts && savedAccounts.filter(a => a.user.username !== user.username).map(acc => (
                     <button 
                       key={acc.user.username} 
-                      onClick={() => switchAccount(acc.token)} 
+                      onClick={() => switchAccount(acc.accessToken, acc.refreshToken)} 
                       className="w-full px-4 py-3 hover:bg-dark-800 flex items-center gap-3 transition-colors text-left"
-                    >
+                      >
                       <Avatar src={acc.user.avatar} name={acc.user.displayName} />
                       <div>
                         <p className="font-bold text-sm text-white">{acc.user.displayName}</p>
