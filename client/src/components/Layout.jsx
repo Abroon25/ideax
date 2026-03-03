@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { getInitials } from '../utils/helpers';
 import api from '../services/api';
 import {
+  HiOutlineBriefcase,
   HiOutlineHome,
   HiOutlineHashtag,
   HiOutlineBell,
@@ -13,8 +14,7 @@ import {
   HiOutlineSparkles,
   HiOutlineLightBulb,
   HiOutlineChartBar,
-  HiOutlineShieldCheck
-} from 'react-icons/hi';
+  HiOutlineShieldCheck} from 'react-icons/hi';
 import { HiMagnifyingGlass } from 'react-icons/hi2';
 
 
@@ -55,6 +55,7 @@ export default function Layout({ children }) {
     { to: '/explore', icon: HiOutlineHashtag, label: 'Explore' },
     { to: '/notifications', icon: HiOutlineBell, label: 'Notifications' },
     { to: '/bookmarks', icon: HiOutlineBookmark, label: 'Bookmarks' },
+    { to: '/purchases', icon: HiOutlineBriefcase, label: 'Wallet & NDAs' },
     { to: "/analytics", icon: HiOutlineChartBar, label: "Analytics" },
     { to: '/tiers', icon: HiOutlineSparkles, label: 'Tiers' },
     { to: '/profile/' + (user ? user.username : ''), icon: HiOutlineUser, label: 'Profile' },
