@@ -1,16 +1,21 @@
 const prisma = require('../config/database');
 const { TIER_LIMITS, PAY_PER_POST } = require('../utils/constants');
 const crypto = require('crypto');
+const Razorpay = require('razorpay');
+const { generateInvoicePDF } = require('../services/invoiceService');
 
-let razorpayInstance = null;
+// Check if Razorpay keys exist
+const isRazorpayConfigured = !!process.env.RAZORPAY_KEY_ID;
 const getRazorpay = () => {
-  if (!razorpayInstance && process.env.RAZORPAY_KEY_ID) {
-    const Razorpay = require('razorpay');
-    razorpayInstance = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET });
+  if (isRazorpayConfigured) {
+    return new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET });
   }
-  return razorpayInstance;
+  return null;
 };
 
+// ==========================================
+// (Tiers & Pay-Per-Post)
+// ==========================================
 const createPaymentOrder = async (req, res, next) => {
   try {
     const { type, tier, extraChars, extraStorageMB } = req.body;
@@ -44,7 +49,7 @@ const createPaymentOrder = async (req, res, next) => {
     }
 
     const razorpay = getRazorpay();
-    if (!razorpay) return res.status(503).json({ error: 'Payment service unavailable' });
+    if (!razorpay) return res.status(503).json({ error: 'Payment service unavailable (Razorpay keys missing)' });
 
     const order = await razorpay.orders.create({ amount: amount * 100, currency: 'INR', receipt: 'ideax_' + Date.now() });
 
@@ -92,4 +97,96 @@ const getTransactions = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-module.exports = { createPaymentOrder, verifyPayment, getTransactions };
+// ==========================================
+// (Idea Purchase & NDA)
+// ==========================================
+const createIdeaOrder = async (req, res, next) => {
+  try {
+    const { ideaId } = req.body;
+    const idea = await prisma.idea.findUnique({ where: { id: ideaId } });
+    
+    if (!idea) return res.status(404).json({ error: 'Idea not found' });
+    if (idea.isSold) return res.status(400).json({ error: 'Idea already sold' });
+    if (!idea.askingPrice) return res.status(400).json({ error: 'Idea is not for sale' });
+
+    const amountInPaise = Math.round(Number(idea.askingPrice) * 100);
+
+    // Mock Flow
+    if (!isRazorpayConfigured) {
+      return res.json({ mock: true, orderId: 'mock_order_' + Date.now(), amount: amountInPaise, currency: 'INR' });
+    }
+
+    const razorpay = getRazorpay();
+    const order = await razorpay.orders.create({
+      amount: amountInPaise,
+      currency: 'INR',
+      receipt: `idea_${ideaId.substring(0,8)}_${Date.now()}`
+    });
+
+    res.json({ mock: false, orderId: order.id, amount: order.amount, currency: order.currency, keyId: process.env.RAZORPAY_KEY_ID });
+  } catch (error) { next(error); }
+};
+
+const verifyIdeaPayment = async (req, res, next) => {
+  try {
+    const { ideaId, orderId, paymentId, signature, isMock } = req.body;
+    const buyerId = req.user.id;
+
+    const idea = await prisma.idea.findUnique({ where: { id: ideaId } });
+    if (!idea || idea.isSold) return res.status(400).json({ error: 'Invalid idea or already sold' });
+
+    if (!isMock && isRazorpayConfigured) {
+      const body = orderId + '|' + paymentId;
+      const expectedSignature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET).update(body.toString()).digest('hex');
+      if (expectedSignature !== signature) return res.status(400).json({ error: 'Payment verification failed' });
+    }
+
+    // 1. Mark Idea as Sold
+    await prisma.idea.update({
+      where: { id: ideaId },
+      data: { 
+        isSold: true, 
+        soldTo: buyerId, 
+        soldAt: new Date(), 
+        soldPrice: idea.askingPrice,
+        totalEarnings: { increment: idea.askingPrice } 
+      }
+    });
+
+    // 2. Create Transaction Record
+    const transaction = await prisma.transaction.create({
+      data: {
+        userId: buyerId,
+        ideaId: ideaId,
+        type: 'IDEA_PURCHASE',
+        status: 'COMPLETED',
+        amount: idea.askingPrice,
+        razorpayOrderId: orderId,
+        razorpayPayId: paymentId || 'mock_pay_id'
+      }
+    });
+
+    // 3. Create NDA
+    await prisma.nDA.create({
+      data: { ideaId, buyerId, sellerId: idea.authorId, status: 'SIGNED' }
+    });
+
+    // 4. Generate PDF Invoice
+    const buyer = await prisma.user.findUnique({ where: { id: buyerId } });
+    generateInvoicePDF(transaction, buyer, idea).then(async (pdfUrl) => {
+      await prisma.invoice.create({
+        data: { transactionId: transaction.id, invoiceUrl: pdfUrl }
+      });
+    }).catch(err => console.error('Invoice gen failed:', err));
+
+    res.json({ message: 'Purchase successful!', transactionId: transaction.id });
+  } catch (error) { next(error); }
+};
+
+module.exports = { 
+  createPaymentOrder, 
+  verifyPayment, 
+  getTransactions, 
+  createIdeaOrder, 
+  verifyIdeaPayment 
+};
