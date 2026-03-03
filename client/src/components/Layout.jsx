@@ -55,6 +55,7 @@ export default function Layout({ children }) {
     { to: '/explore', icon: HiOutlineHashtag, label: 'Explore' },
     { to: '/notifications', icon: HiOutlineBell, label: 'Notifications' },
     { to: '/bookmarks', icon: HiOutlineBookmark, label: 'Bookmarks' },
+    { to: "/analytics", icon: HiOutlineChartBar, label: "Analytics" },
     { to: '/tiers', icon: HiOutlineSparkles, label: 'Tiers' },
     { to: '/profile/' + (user ? user.username : ''), icon: HiOutlineUser, label: 'Profile' },
     { to: '/settings', icon: HiOutlineCog, label: 'Settings' }
