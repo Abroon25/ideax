@@ -14,6 +14,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [savedAccounts, setSavedAccounts] = useState([]);
 
+  // Helper function to save account to list
   const updateSavedAccount = (userData, accessToken, refreshToken, currentSaved) => {
     let updated = [...currentSaved];
     const existingIndex = updated.findIndex(a => a.user.username === userData.username);
@@ -33,14 +34,16 @@ export const AuthProvider = ({ children }) => {
 
       const token = localStorage.getItem('accessToken');
       if (!token) { setLoading(false); return; }
+      
       const { data } = await api.get('/auth/me');
       setUser(data.user);
-
+      
       const refresh = localStorage.getItem('refreshToken');
       updateSavedAccount(data.user, token, refresh, saved);
 
     } catch {
-      localStorage.clear();
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
       setUser(null);
     } finally { setLoading(false); }
   }, []);
@@ -52,8 +55,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user);
-    updateSavedAccount(data.user, data.accessToken, data.refreshToken, savedAccounts);
-
+    
+    // Make sure we have latest savedAccounts before updating
+    const currentSaved = JSON.parse(localStorage.getItem("savedAccounts") || "[]");
+    updateSavedAccount(data.user, data.accessToken, data.refreshToken, currentSaved);
+    
     return data;
   };
 
@@ -62,45 +68,60 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user);
-    updateSavedAccount(data.user, data.accessToken, data.refreshToken, savedAccounts);
-
+    
+    const currentSaved = JSON.parse(localStorage.getItem("savedAccounts") || "[]");
+    updateSavedAccount(data.user, data.accessToken, data.refreshToken, currentSaved);
+    
     return data;
   };
 
   const logout = async () => {
     try { await api.post('/auth/logout', { refreshToken: localStorage.getItem('refreshToken') }); } catch {}
     
-    // NEW: Multi-account logout logic
     if (user) {
       const updated = savedAccounts.filter(a => a.user.username !== user.username);
       localStorage.setItem("savedAccounts", JSON.stringify(updated));
       setSavedAccounts(updated);
       
-      // If another account is logged in, switch to it automatically!
       if (updated.length > 0) {
+        // INSTANT SWITCH (No reload)
         switchAccount(updated[0].accessToken, updated[0].refreshToken);
         return;
       }
     }
 
-    // If no other accounts, fully clear
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     setUser(null);
     window.location.href = '/login';
   };
 
-  // NEW: Switch to a different saved account
-  const switchAccount = (accessToken, refreshToken) => {
+  // INSTANT ACCOUNT SWITCHING FIX
+  const switchAccount = async (accessToken, refreshToken) => {
+    setLoading(true);
     localStorage.setItem("accessToken", accessToken);
     localStorage.setItem("refreshToken", refreshToken);
-    window.location.href = "/"; // Reload app to log into the new account
+    
+    try {
+      // Re-fetch the user profile with the newly set token
+      const { data } = await api.get('/auth/me');
+      setUser(data.user);
+    } catch {
+      // If the token expired while they were switched away, force a clean login
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      setUser(null);
+      window.location.href = "/login";
+    } finally {
+      setLoading(false);
+      window.location.href = "/"; // Send them to home screen of the new account
+    }
   };
 
-  // NEW: Temporarily clear current tokens to allow new login, but keep saved list
   const prepareAddAccount = () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
+    setUser(null); // Clear context instantly
     window.location.href = "/login";
   };
 
@@ -109,10 +130,9 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{ 
       user, loading, login, signup, logout, updateUser, fetchUser,
-      savedAccounts, switchAccount, prepareAddAccount // NEW exports
+      savedAccounts, switchAccount, prepareAddAccount
     }}>
       {children}
     </AuthContext.Provider>
   );
 };
-
