@@ -8,11 +8,23 @@ import { MONETIZE_LABELS, CATEGORY_ICONS } from '../utils/constants';
 import { HiOutlineHeart, HiHeart, HiOutlineChatAlt2, HiBookmark, HiOutlineEye, HiOutlineCash, HiOutlineTrash, HiOutlinePencil } from 'react-icons/hi';
 import { HiOutlineBookmark, HiArrowLeft } from 'react-icons/hi2';
 
+// Helper to load external scripts dynamically
+function loadScript(src) {
+  return new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 export default function IdeaDetailPage() {
   var { id } = useParams();
   var navigate = useNavigate();
   var auth = useAuth();
   var user = auth.user;
+  
   var [idea, setIdea] = useState(null);
   var [loading, setLoading] = useState(true);
   var [comment, setComment] = useState('');
@@ -24,9 +36,19 @@ export default function IdeaDetailPage() {
   var [editing, setEditing] = useState(false);
   var [editContent, setEditContent] = useState('');
   var [savingEdit, setSavingEdit] = useState(false);
+  var [purchasing, setPurchasing] = useState(false);
 
   useEffect(function() {
-    api.get('/ideas/' + id).then(function(res) { setIdea(res.data.idea); setEditContent(res.data.idea.content); setLoading(false); }).catch(function() { toast.error('Not found'); navigate('/'); });
+    api.get('/ideas/' + id)
+      .then(function(res) { 
+        setIdea(res.data.idea); 
+        setEditContent(res.data.idea.content); 
+        setLoading(false); 
+      })
+      .catch(function() { 
+        toast.error('Not found'); 
+        navigate('/'); 
+      });
   }, [id]);
 
   function handleLike() {
@@ -58,26 +80,6 @@ export default function IdeaDetailPage() {
     }).catch(function(err) { toast.error(err.response ? err.response.data.error : 'Failed'); });
   }
 
-  const handlePurchase = async () => {
-    if (!window.confirm(`Buy this idea for ${formatCurrency(idea.askingPrice)}?`)) return;
-    
-    // 1. Generate NDA
-    try {
-      toast.loading('Generating NDA...', { id: 'purchase' });
-      await api.post('/business/ndas/generate', { ideaId: idea.id });
-      
-      // 2. Mock Razorpay Flow (Since we don't have keys yet)
-      setTimeout(() => {
-        toast.success('Payment Successful! Idea Purchased.', { id: 'purchase' });
-        // Update local state to show as sold
-        setIdea(p => ({ ...p, isSold: true, soldTo: user.id }));
-      }, 2000);
-      
-    } catch (err) {
-      toast.error('Transaction failed', { id: 'purchase' });
-    }
-  };
-
   function handleDelete() {
     if (!window.confirm('Are you sure you want to delete this idea?')) return;
     api.delete('/ideas/' + id).then(function() { toast.success('Idea deleted'); navigate('/'); }).catch(function() { toast.error('Failed'); });
@@ -96,6 +98,79 @@ export default function IdeaDetailPage() {
   function shareToLinkedIn() { window.open('https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(window.location.href), '_blank'); }
   function shareToWhatsApp() { window.open('https://wa.me/?text=' + encodeURIComponent(idea.content.substring(0, 200) + ' ' + window.location.href), '_blank'); }
   function copyLink() { navigator.clipboard.writeText(window.location.href); toast.success('Link copied!'); setShowShare(false); }
+
+  // RAZORPAY PAYMENT FLOW
+  async function handlePurchase() {
+    if (!window.confirm('Buy this idea for ' + formatCurrency(idea.askingPrice) + '?')) return;
+    setPurchasing(true);
+    const toastId = toast.loading('Initiating secure checkout...');
+
+    try {
+      // 1. Create Order on Backend
+      const orderRes = await api.post('/payments/idea/create-order', { ideaId: idea.id });
+      const { mock, orderId, amount, currency, keyId } = orderRes.data;
+
+      // 2. Mock Flow (If Razorpay keys are not set in Railway yet)
+      if (mock) {
+        toast.loading('Razorpay keys not found. Running Mock Payment...', { id: toastId });
+        await api.post('/payments/idea/verify', { ideaId: idea.id, orderId, isMock: true });
+        toast.success('Mock Purchase Successful! NDA & Invoice Generated.', { id: toastId });
+        setIdea(p => ({ ...p, isSold: true, soldTo: user.id }));
+        setPurchasing(false);
+        return;
+      }
+
+      // 3. Real Razorpay Flow
+      const res = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
+      if (!res) {
+        toast.error('Failed to load Razorpay SDK. Check connection.', { id: toastId });
+        setPurchasing(false);
+        return;
+      }
+
+      const options = {
+        key: keyId,
+        amount: amount.toString(),
+        currency: currency,
+        name: 'IdeaX',
+        description: 'Purchase Idea Ownership',
+        order_id: orderId,
+        prefill: {
+          name: user.displayName,
+          email: user.email,
+          contact: user.phone || '9999999999'
+        },
+        theme: { color: '#1DA1F2' },
+        handler: async function (response) {
+          toast.loading('Verifying payment & generating NDA...', { id: toastId });
+          try {
+            await api.post('/payments/idea/verify', {
+              ideaId: idea.id,
+              orderId: response.razorpay_order_id,
+              paymentId: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+              isMock: false
+            });
+            toast.success('Payment Successful! Idea Purchased.', { id: toastId });
+            setIdea(p => ({ ...p, isSold: true, soldTo: user.id }));
+          } catch (err) {
+            toast.error('Verification failed. Please contact support.', { id: toastId });
+          }
+        }
+      };
+
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.on('payment.failed', function () {
+        toast.error('Payment cancelled or failed.', { id: toastId });
+      });
+      paymentObject.open();
+      toast.dismiss(toastId);
+
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Transaction initialization failed', { id: toastId });
+    }
+    setPurchasing(false);
+  }
 
   if (loading) return <div className="py-20 flex justify-center"><div className="w-8 h-8 border-2 border-dark-600 border-t-primary-500 rounded-full animate-spin" /></div>;
   if (!idea) return null;
@@ -177,7 +252,7 @@ export default function IdeaDetailPage() {
           </div>
         )}
 
-        {/* Monetization Actions (Buy / Express Interest) */}
+        {/* Monetization Actions */}
         {idea.monetizeType !== 'NONE' && !idea.isOwner && (
           <div className="py-4 border-b border-dark-700">
             {idea.isSold ? (
@@ -186,21 +261,19 @@ export default function IdeaDetailPage() {
               </div>
             ) : (
               <>
-                {idea.monetizeType === 'MONEY' && idea.askingPrice ? (
-                  <button onClick={handlePurchase} className="btn-primary w-full py-3 mb-3 bg-green-600 hover:bg-green-700">
+                {idea.monetizeType === 'MONEY' && idea.askingPrice && (
+                  <button onClick={handlePurchase} disabled={purchasing} className="btn-primary w-full py-3 mb-3 bg-green-600 hover:bg-green-700 disabled:opacity-50">
                     <HiOutlineCash className="inline w-5 h-5 mr-2 -mt-1" />
-                    Buy Idea for {formatCurrency(idea.askingPrice)}
+                    {purchasing ? 'Processing...' : 'Buy Idea for ' + formatCurrency(idea.askingPrice)}
                   </button>
-                ) : null}
-
-                <button onClick={() => setShowInterest(!showInterest)} className="btn-outline w-full py-3">
+                )}
+                <button onClick={function() { setShowInterest(!showInterest); }} className="btn-outline w-full py-3">
                   Negotiate / Express Interest
                 </button>
-
                 {showInterest && (
                   <div className="mt-4 space-y-3">
-                    <textarea value={interestMsg} onChange={e => setInterestMsg(e.target.value)} placeholder="Message to creator..." className="input-field" rows={3} />
-                    {idea.monetizeType === 'MONEY' && <input type="number" value={offerAmt} onChange={e => setOfferAmt(e.target.value)} placeholder={`Your Offer (asking: ${formatCurrency(idea.askingPrice)})`} className="input-field" />}
+                    <textarea value={interestMsg} onChange={function(e) { setInterestMsg(e.target.value); }} placeholder="Message to creator..." className="input-field" rows={3} />
+                    {idea.monetizeType === 'MONEY' && <input type="number" value={offerAmt} onChange={function(e) { setOfferAmt(e.target.value); }} placeholder={'Your Offer (asking: ' + formatCurrency(idea.askingPrice) + ')'} className="input-field" />}
                     <button onClick={handleInterest} className="btn-primary w-full">Send Message</button>
                   </div>
                 )}
@@ -208,7 +281,6 @@ export default function IdeaDetailPage() {
             )}
           </div>
         )}
-
 
         {/* Comment Input */}
         <div className="flex gap-3 py-4">
