@@ -18,7 +18,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import NotFound from './pages/NotFound';
 import Analytics from './pages/Analytics';
 import AdminDashboard from './pages/AdminDashboard';
-
+import Purchases from './pages/Purchases';
 
 
 function ProtectedRoute({ children, withLayout }) {
@@ -59,6 +59,7 @@ export default function App() {
       <Route path="/messages" element={<ProtectedRoute withLayout><Messages /></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute withLayout><Analytics /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute withLayout><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/purchases" element={<ProtectedRoute withLayout><Purchases /></ProtectedRoute>} />
     </Routes>
   );
 }
