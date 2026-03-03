@@ -44,10 +44,20 @@ const signup = async (req, res, next) => {
 
 const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+    // We changed 'email' to 'loginId' to accept either email or username
+    const { loginId, password } = req.body;
+    if (!loginId || !password) return res.status(400).json({ error: 'Email/Username and password required' });
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    // Search by email OR username
+    const user = await prisma.user.findFirst({ 
+      where: { 
+        OR: [
+          { email: loginId },
+          { username: loginId.toLowerCase() }
+        ]
+      } 
+    });
+    
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
     const isMatch = await bcrypt.compare(password, user.password);
