@@ -91,9 +91,29 @@ const verifyPayment = async (req, res, next) => {
 const getTransactions = async (req, res, next) => {
   try {
     const transactions = await prisma.transaction.findMany({
-      where: { userId: req.user.id }, orderBy: { createdAt: 'desc' }, take: 50,
+      where: { userId: req.user.id },
+      include: {
+        idea: { select: { content: true } },
+        invoice: true,
+        disputes: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
     });
-    res.json({ transactions });
+
+    const ndas = await prisma.nDA.findMany({
+      where: { 
+        OR: [{ buyerId: req.user.id }, { sellerId: req.user.id }] 
+      },
+      include: {
+        idea: { select: { content: true } },
+        buyer: { select: { displayName: true, username: true } },
+        seller: { select: { displayName: true, username: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ transactions, ndas });
   } catch (error) { next(error); }
 };
 
