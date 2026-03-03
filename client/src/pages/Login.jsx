@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -14,7 +14,7 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = await login({ email, password });
+      const data = await login({ loginId, password });
       toast.success('Welcome back!');
       navigate(data.user.isOnboarded ? '/' : '/genres');
     } catch (err) { toast.error(err.response?.data?.error || 'Login failed'); }
@@ -29,7 +29,7 @@ export default function Login() {
           <p className="text-dark-400 mt-2">Sign in to monetize your ideas</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="input-field" required />
+          <input type="text" value={loginId} onChange={(e) => setLoginId(e.target.value)} placeholder="Email or Username" className="input-field" required />
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="input-field" required />
           <button type="submit" disabled={loading} className="btn-primary w-full py-3 text-lg">
             {loading ? 'Signing in...' : 'Sign In'}
