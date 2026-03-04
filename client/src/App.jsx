@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Analytics as VercelAnalytics } from '@vercel/analytics/react';
 import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import Home from './pages/Home';
@@ -41,6 +42,7 @@ export default function App() {
   var user = auth.user;
 
   return (
+    <>
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
       <Route path="/signup" element={user ? <Navigate to="/" /> : <Signup />} />
@@ -61,5 +63,7 @@ export default function App() {
       <Route path="/admin" element={<ProtectedRoute withLayout><AdminDashboard /></ProtectedRoute>} />
       <Route path="/purchases" element={<ProtectedRoute withLayout><Purchases /></ProtectedRoute>} />
     </Routes>
+      <VercelAnalytics /> 
+    </>
   );
 }
