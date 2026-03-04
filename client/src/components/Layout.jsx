@@ -26,7 +26,7 @@ function Avatar({ src, name }) {
 }
 
 export default function Layout({ children }) {
-  const { user, logout, savedAccounts, switchAccount, prepareAddAccount } = useAuth();
+  const { user, logout, otherAccounts, switchAccount, prepareAddAccount } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [genres, setGenres] = useState([]);
@@ -121,12 +121,12 @@ export default function Layout({ children }) {
                   </div>
 
                   {/* Other Saved Accounts */}
-                  {savedAccounts && savedAccounts.filter(a => a.user.username !== user.username).map(acc => (
+                  {otherAccounts.map(acc => (
                     <button 
                       key={acc.user.username} 
-                      onClick={() => switchAccount(acc.accessToken, acc.refreshToken)} 
+                      onClick={() => switchAccount(acc.user.username)} 
                       className="w-full px-4 py-3 hover:bg-dark-800 flex items-center gap-3 transition-colors text-left"
-                      >
+                    >
                       <Avatar src={acc.user.avatar} name={acc.user.displayName} />
                       <div>
                         <p className="font-bold text-sm text-white">{acc.user.displayName}</p>
@@ -134,6 +134,7 @@ export default function Layout({ children }) {
                       </div>
                     </button>
                   ))}
+
 
                   {/* Add Existing Account Button */}
                   <button 
