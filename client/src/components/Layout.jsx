@@ -44,13 +44,15 @@ function CircularProgress({ current, max }) {
 }
 
 export default function Layout({ children }) {
-  const { user, logout, savedAccounts, switchAccount, prepareAddAccount } = useAuth();
+  // ★ FIX 1: Use otherAccounts from context (not savedAccounts)
+  const { user, logout, otherAccounts, switchAccount, prepareAddAccount } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [genres, setGenres] = useState([]);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
 
+  // Global Composer Modal State
   const [showComposerModal, setShowComposerModal] = useState(false);
   const [content, setContent] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
@@ -61,6 +63,9 @@ export default function Layout({ children }) {
   const fileInputRef = useRef(null);
 
   const limits = TIER_LIMITS[user?.tier || 'FREE'];
+
+  // ★ FIX 2: REMOVED the manual filter line that was here
+  // const otherAccounts = ... ← DELETED (now comes from context)
 
   useEffect(() => {
     if (showComposerModal) document.body.style.overflow = 'hidden';
@@ -92,7 +97,7 @@ export default function Layout({ children }) {
     if (!content.trim()) return toast.error('Write something!');
     if (!selectedGenre) return toast.error('Select a genre');
     setPosting(true);
-    
+
     const formData = new FormData();
     formData.append('content', content.trim());
     formData.append('genreId', selectedGenre);
@@ -105,14 +110,12 @@ export default function Layout({ children }) {
       toast.success('Your idea was sent.');
       setContent(''); setSelectedGenre(''); setMonetizeType('NONE'); setAskingPrice(''); setMediaFiles([]);
       setShowComposerModal(false);
-      
+
       if (location.pathname === '/') window.location.reload();
       else navigate('/');
     } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
     finally { setPosting(false); }
   };
-
-  const otherAccounts = (savedAccounts || []).filter(a => a.user && a.user.username !== user?.username);
 
   const navLinks = [
     { to: '/', outline: HiOutlineHome, solid: HiHome, label: 'Home' },
@@ -131,12 +134,13 @@ export default function Layout({ children }) {
   }
 
   return (
-    <div className="flex justify-center min-h-screen bg-dark-950 relative">
-      
+    <div className="flex justify-center min-h-screen bg-dark-950">
+
       {/* GLOBAL COMPOSER MODAL */}
       {showComposerModal && (
         <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center bg-dark-950/80 sm:bg-dark-950/60 backdrop-blur-sm pt-0 sm:pt-10">
           <div className="bg-dark-950 sm:bg-dark-900 w-full max-w-[600px] h-full sm:h-auto sm:rounded-2xl shadow-2xl flex flex-col relative sm:border border-dark-700">
+
             <div className="flex items-center justify-between px-4 py-3 border-b border-dark-700 sm:border-transparent">
               <button onClick={() => setShowComposerModal(false)} className="p-2 hover:bg-dark-800 rounded-full transition-colors text-white">
                 <HiOutlineX className="w-5 h-5" />
@@ -155,7 +159,14 @@ export default function Layout({ children }) {
                   <option value="" className="bg-dark-900 text-white">Select Genre ▾</option>
                   {genres.map(g => <option key={g.id} value={g.id} className="bg-dark-900 text-white">{g.icon} {g.name}</option>)}
                 </select>
-                <textarea value={content} onChange={e => setContent(e.target.value)} placeholder="What is happening?!" className="w-full bg-transparent text-xl placeholder-dark-500 resize-none focus:outline-none min-h-[120px] text-white" maxLength={limits.maxChars} />
+
+                <textarea
+                  value={content}
+                  onChange={e => setContent(e.target.value)}
+                  placeholder="What is happening?!"
+                  className="w-full bg-transparent text-xl placeholder-dark-500 resize-none focus:outline-none min-h-[120px] text-white"
+                  maxLength={limits.maxChars}
+                />
 
                 {mediaFiles.length > 0 && (
                   <div className="flex gap-2 overflow-x-auto py-2">
@@ -183,7 +194,7 @@ export default function Layout({ children }) {
                 <input type="file" ref={fileInputRef} hidden accept="image/*" multiple onChange={handleMediaSelect} />
                 <button onClick={() => setMonetizeType(monetizeType === 'NONE' ? 'MONEY' : 'NONE')} className="p-2 rounded-full hover:bg-primary-500/10 transition-colors"><HiOutlineCash className="w-5 h-5" /></button>
               </div>
-              
+
               <div className="flex items-center gap-3">
                 {content.length > 0 && (
                   <>
@@ -196,17 +207,17 @@ export default function Layout({ children }) {
                 </button>
               </div>
             </div>
+
           </div>
         </div>
       )}
 
-      {/* INVISIBLE OVERLAY FOR ACCOUNT MENU (Now with z-[60] to sit strictly above the sidebar but below the menu) */}
-      {showAccountMenu && (
-        <div className="fixed inset-0 z-[60]" onClick={() => setShowAccountMenu(false)}></div>
-      )}
+      {/* Overlay to close account menu — z-40 stays BELOW sidebar */}
+      {showAccountMenu && <div className="fixed inset-0 z-40" onClick={() => setShowAccountMenu(false)}></div>}
 
       {/* Left Sidebar */}
       <div className="hidden sm:flex flex-col xl:w-[275px] w-[80px] items-center xl:items-stretch">
+        {/* ★ FIX 3: z-30 → z-50 so sidebar sits ABOVE the overlay */}
         <div className="fixed xl:w-[275px] w-[80px] h-screen flex flex-col justify-between py-4 px-2 xl:px-4 overflow-y-auto z-50">
           <div className="flex flex-col items-center xl:items-stretch">
             <Link to="/" className="text-2xl font-bold p-3 mb-2 flex items-center justify-center xl:justify-start hover:bg-dark-900 rounded-full w-fit transition-colors">
@@ -236,14 +247,14 @@ export default function Layout({ children }) {
             </button>
           </div>
 
-          {/* TWITTER STYLE ACCOUNT SWITCHER AT BOTTOM */}
+          {/* ACCOUNT SWITCHER */}
           {user && (
-            <div className="relative mt-4 flex justify-center xl:justify-start w-full">
-              
-              {/* The Popup Menu - Set z-[70] to guarantee it sits above the invisible overlay */}
+            <div className="relative mt-4">
               {showAccountMenu && (
-                <div className="absolute bottom-16 xl:bottom-20 left-0 w-[300px] bg-dark-950 border border-dark-700 rounded-2xl shadow-[0_0_15px_rgba(255,255,255,0.1)] py-2 z-[70] overflow-hidden">
-                  
+                // ★ FIX 4: z-50 → z-[60] so popup sits ABOVE sidebar
+                <div className="absolute bottom-20 left-0 w-[300px] bg-dark-950 border border-dark-700 rounded-2xl shadow-[0_0_15px_rgba(255,255,255,0.1)] py-2 z-[60] overflow-hidden">
+
+                  {/* Current Active Account */}
                   <div className="px-4 py-3 border-b border-dark-700 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Avatar src={user.avatar} name={user.displayName} />
@@ -255,10 +266,11 @@ export default function Layout({ children }) {
                     <HiCheck className="text-primary-500 w-5 h-5" />
                   </div>
 
+                  {/* ★ FIX 5: otherAccounts from context + switchAccount(username) */}
                   {otherAccounts.map(acc => (
                     <button
                       key={acc.user.username}
-                      onClick={() => switchAccount(acc.accessToken, acc.refreshToken)}
+                      onClick={() => switchAccount(acc.user.username)}
                       className="w-full px-4 py-3 hover:bg-dark-800 flex items-center gap-3 transition-colors text-left"
                     >
                       <Avatar src={acc.user.avatar} name={acc.user.displayName} />
@@ -285,19 +297,20 @@ export default function Layout({ children }) {
                 </div>
               )}
 
-              {/* The Profile Button that opens the menu */}
               <button
                 onClick={() => setShowAccountMenu(!showAccountMenu)}
-                className="flex items-center justify-center xl:justify-between p-3 rounded-full hover:bg-dark-900 transition-colors w-full"
+                className="flex items-center justify-center xl:justify-between p-3 rounded-full hover:bg-dark-900 transition-colors w-full text-left"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <Avatar src={user.avatar} name={user.displayName} />
-                  <div className="hidden xl:block min-w-0 flex-1 text-left">
+                  <div className="hidden xl:block min-w-0 flex-1">
                     <p className="font-bold text-[15px] leading-tight truncate text-white">{user.displayName}</p>
                     <p className="text-[15px] text-dark-400 truncate">@{user.username}</p>
                   </div>
                 </div>
-                <HiOutlineDotsHorizontal className="hidden xl:block text-white w-5 h-5" />
+                <div className="hidden xl:block text-dark-300">
+                  <HiOutlineDotsHorizontal className="w-5 h-5" />
+                </div>
               </button>
             </div>
           )}
@@ -324,7 +337,9 @@ export default function Layout({ children }) {
               <p>₹1 / 5MB extra storage</p>
               <p>₹10 to unlock monetization</p>
             </div>
-            <Link to="/tiers" className="text-primary-500 text-[15px] font-bold hover:underline mt-3 inline-block">View all tiers →</Link>
+            <Link to="/tiers" className="text-primary-500 text-[15px] font-bold hover:underline mt-3 inline-block">
+              View all tiers →
+            </Link>
           </div>
 
           <div className="bg-dark-900 rounded-2xl pt-4 pb-2 shrink-0 border border-dark-800">
