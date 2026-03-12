@@ -330,6 +330,7 @@ export default function Layout({ children }) {
             <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search IdeaX" className="w-full bg-dark-900 border border-transparent focus:border-primary-500 rounded-full pl-12 pr-4 py-3 text-[15px] focus:outline-none focus:bg-dark-950 transition-all" />
           </form>
 
+          {/* Pay Per Post Card */}
           <div className="bg-dark-900 rounded-2xl p-4 shrink-0 border border-dark-800">
             <h3 className="font-extrabold text-xl mb-2 text-white">💳 Pay Per Post</h3>
             <div className="space-y-1.5 text-[15px] text-dark-200">
@@ -337,11 +338,28 @@ export default function Layout({ children }) {
               <p>₹1 / 5MB extra storage</p>
               <p>₹10 to unlock monetization</p>
             </div>
-            <Link to="/tiers" className="text-primary-500 text-[15px] font-bold hover:underline mt-3 inline-block">
-              View all tiers →
-            </Link>
+            <Link to="/tiers" className="text-primary-500 text-[15px] font-bold hover:underline mt-3 inline-block">View all tiers →</Link>
           </div>
 
+          {/* NEW: Who to follow */}
+          <div className="bg-dark-900 rounded-2xl pt-4 pb-2 shrink-0 border border-dark-800">
+            <h3 className="text-xl font-extrabold mb-2 px-4 text-white">Who to follow</h3>
+            <div className="flex flex-col">
+              <Link to="/explore" className="hover:bg-dark-800 px-4 py-3 transition-colors flex items-center justify-between">
+                <div className="flex gap-3 items-center">
+                  <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center font-bold text-white">E</div>
+                  <div>
+                    <p className="font-bold text-[15px] text-white hover:underline">Elon Musk</p>
+                    <p className="text-[15px] text-dark-400">@elonmusk</p>
+                  </div>
+                </div>
+                <button className="bg-white text-black font-bold px-4 py-1.5 rounded-full text-sm hover:bg-gray-200">Follow</button>
+              </Link>
+            </div>
+            <Link to="/search" className="text-primary-500 text-[15px] px-4 py-3 hover:bg-dark-800 rounded-b-2xl block transition-colors">Show more</Link>
+          </div>
+
+          {/* What's happening */}
           <div className="bg-dark-900 rounded-2xl pt-4 pb-2 shrink-0 border border-dark-800">
             <h3 className="text-xl font-extrabold mb-2 px-4 text-white">What's happening</h3>
             <div className="flex flex-col">
