@@ -3,13 +3,33 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { timeAgo, formatNumber, formatCurrency, truncateText, getInitials } from '../utils/helpers';
+import { timeAgo, formatNumber, formatCurrency, getInitials } from '../utils/helpers';
 import { MONETIZE_LABELS, CATEGORY_ICONS, TIER_LIMITS } from '../utils/constants';
 import {
   HiOutlineHeart, HiHeart, HiOutlineChatAlt2, HiOutlineEye, HiOutlineShare, 
   HiOutlineCash, HiOutlinePhotograph, HiOutlineX
 } from 'react-icons/hi';
 import { HiOutlineBookmark as HiOutlineBM, HiBookmark } from 'react-icons/hi2';
+
+// --- NEW: Rich Text Parser for Mentions and Hashtags ---
+function RichText({ text }) {
+  if (!text) return null;
+  const parts = text.split(/(@\w+|#\w+)/g);
+  
+  return (
+    <span className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-white">
+      {parts.map((part, i) => {
+        if (part.startsWith('@')) {
+          return <Link key={i} to={`/profile/${part.slice(1)}`} onClick={e => e.stopPropagation()} className="text-primary-500 hover:underline">{part}</Link>;
+        }
+        if (part.startsWith('#')) {
+          return <Link key={i} to={`/search?q=${encodeURIComponent(part)}`} onClick={e => e.stopPropagation()} className="text-primary-500 hover:underline">{part}</Link>;
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </span>
+  );
+}
 
 function Avatar({ src, name, size }) {
   var s = size || 'w-10 h-10';
@@ -30,14 +50,24 @@ function CircularProgress({ current, max }) {
   );
 }
 
-function IdeaCard({ idea, onLike, onBookmark }) {
+function IdeaCard({ idea, onLike, onBookmark, onImageClick }) {
   var navigate = useNavigate();
   return (
     <div className="border-b border-dark-700 p-4 hover:bg-dark-900/30 transition-colors cursor-pointer" onClick={(e) => { if (!e.target.closest('button') && !e.target.closest('a')) navigate('/idea/' + idea.id); }}>
       <div className="flex gap-3">
-        <Link to={'/profile/' + idea.author.username} onClick={e => e.stopPropagation()}>
+        {/* NEW: Hover effect on Avatar */}
+        <Link to={'/profile/' + idea.author.username} onClick={e => e.stopPropagation()} className="group relative">
           <Avatar src={idea.author.avatar} name={idea.author.displayName} />
+          <div className="absolute top-12 left-0 w-64 bg-dark-900 border border-dark-700 rounded-xl p-4 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 delay-300">
+             <div className="flex justify-between items-start">
+               <Avatar src={idea.author.avatar} name={idea.author.displayName} size="w-12 h-12" />
+               <span className="bg-dark-700 text-xs px-2 py-1 rounded text-white">{idea.author.tier}</span>
+             </div>
+             <p className="font-bold mt-2 text-white">{idea.author.displayName}</p>
+             <p className="text-dark-400 text-sm">@{idea.author.username}</p>
+          </div>
         </Link>
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-[15px]">
             <Link to={'/profile/' + idea.author.username} onClick={e => e.stopPropagation()} className="font-bold hover:underline text-white truncate">
@@ -48,8 +78,9 @@ function IdeaCard({ idea, onLike, onBookmark }) {
             <span className="text-dark-400 hover:underline">{timeAgo(idea.createdAt)}</span>
           </div>
           
-          <div className="mt-1 text-[15px] leading-relaxed whitespace-pre-wrap break-words text-white">
-            {truncateText(idea.content, 280)}
+          {/* NEW: Rich Text Integration */}
+          <div className="mt-1">
+            <RichText text={idea.content} />
           </div>
 
           <div className="flex items-center gap-2 mt-2">
@@ -61,11 +92,18 @@ function IdeaCard({ idea, onLike, onBookmark }) {
             )}
           </div>
 
+          {/* NEW: Image Lightbox trigger */}
           {idea.attachments && idea.attachments.length > 0 && (
             <div className={`mt-3 grid gap-2 ${idea.attachments.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
               {idea.attachments.slice(0, 4).map(a => 
                 a.fileType?.startsWith('image') ? (
-                  <img key={a.id} src={a.fileUrl} className="rounded-2xl border border-dark-700 object-cover w-full max-h-64" alt="attachment" />
+                  <img 
+                    key={a.id} 
+                    src={a.fileUrl} 
+                    onClick={(e) => { e.stopPropagation(); onImageClick(a.fileUrl); }}
+                    className="rounded-2xl border border-dark-700 object-cover w-full max-h-64 hover:opacity-90 transition-opacity" 
+                    alt="attachment" 
+                  />
                 ) : null
               )}
             </div>
@@ -103,7 +141,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [genres, setGenres] = useState([]);
   
-  // Composer state
+  // Modal & Composer
   const [content, setContent] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
   const [monetizeType, setMonetizeType] = useState('NONE');
@@ -112,11 +150,12 @@ export default function Home() {
   const [posting, setPosting] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Infinite Scroll state
+  // NEW: Lightbox State
+  const [lightboxImage, setLightboxImage] = useState(null);
+
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef();
-
   const limits = TIER_LIMITS[user?.tier || 'FREE'];
 
   useEffect(() => { api.get('/genres').then(res => setGenres(res.data.genres)).catch(() => {}); }, []);
@@ -148,9 +187,7 @@ export default function Home() {
     setMediaFiles(prev => [...prev, ...newFiles]);
   };
 
-  const removeMedia = (index) => {
-    setMediaFiles(prev => prev.filter((_, i) => i !== index));
-  };
+  const removeMedia = (index) => setMediaFiles(prev => prev.filter((_, i) => i !== index));
 
   const handlePost = async () => {
     if (!content.trim()) return toast.error('Write something!');
@@ -186,13 +223,35 @@ export default function Home() {
     });
   };
 
+  // Prevent scrolling when Lightbox is open
+  useEffect(() => {
+    if (lightboxImage) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = 'unset';
+  }, [lightboxImage]);
+
   return (
     <div>
+      {/* NEW: Media Lightbox Fullscreen Overlay */}
+      {lightboxImage && (
+        <div 
+          className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm cursor-zoom-out"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button 
+            className="absolute top-4 right-4 text-white bg-dark-900/50 hover:bg-dark-800 p-2 rounded-full transition-colors"
+            onClick={(e) => { e.stopPropagation(); setLightboxImage(null); }}
+          >
+            <HiOutlineX className="w-6 h-6" />
+          </button>
+          <img src={lightboxImage} className="max-w-full max-h-full object-contain select-none" alt="Fullscreen preview" />
+        </div>
+      )}
+
       <div className="sticky top-0 z-30 bg-dark-950/80 backdrop-blur-md border-b border-dark-700 px-4 py-3 cursor-pointer" onClick={() => window.scrollTo({top:0, behavior:'smooth'})}>
         <h1 className="text-xl font-bold">Home</h1>
       </div>
 
-      {/* Composer - Twitter Style */}
+      {/* Composer */}
       <div className="border-b border-dark-700 p-4 flex gap-3">
         <Avatar src={user?.avatar} name={user?.displayName} />
         <div className="flex-1">
@@ -231,7 +290,6 @@ export default function Home() {
             <div className="flex gap-1 text-primary-500">
               <button onClick={() => fileInputRef.current.click()} className="p-2 rounded-full hover:bg-primary-500/10 transition-colors tooltip"><HiOutlinePhotograph className="w-5 h-5" /></button>
               <input type="file" ref={fileInputRef} hidden accept="image/*" multiple onChange={handleMediaSelect} />
-              
               <button onClick={() => setMonetizeType(monetizeType === 'NONE' ? 'MONEY' : 'NONE')} className="p-2 rounded-full hover:bg-primary-500/10 transition-colors"><HiOutlineCash className="w-5 h-5" /></button>
             </div>
             
@@ -257,12 +315,11 @@ export default function Home() {
         <>
           {ideas.map((idea, index) => {
             if (ideas.length === index + 1) {
-              return <div ref={lastIdeaRef} key={idea.id}><IdeaCard idea={idea} onLike={handleLike} onBookmark={handleBookmark} /></div>
+              return <div ref={lastIdeaRef} key={idea.id}><IdeaCard idea={idea} onLike={handleLike} onBookmark={handleBookmark} onImageClick={setLightboxImage} /></div>
             }
-            return <IdeaCard key={idea.id} idea={idea} onLike={handleLike} onBookmark={handleBookmark} />
+            return <IdeaCard key={idea.id} idea={idea} onLike={handleLike} onBookmark={handleBookmark} onImageClick={setLightboxImage} />
           })}
           {loading && <div className="py-4 flex justify-center"><div className="w-6 h-6 border-2 border-dark-600 border-t-primary-500 rounded-full animate-spin" /></div>}
-          {!hasMore && ideas.length > 0 && <div className="py-8 text-center text-dark-500 text-sm">No more ideas to load.</div>}
         </>
       )}
     </div>
