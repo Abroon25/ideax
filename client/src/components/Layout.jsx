@@ -359,8 +359,6 @@ export default function Layout({ children }) {
             <span className="hover:underline cursor-pointer">Terms of Service</span>
             <span className="hover:underline cursor-pointer">Privacy Policy</span>
             <span className="hover:underline cursor-pointer">Cookie Policy</span>
-            <span className="hover:underline cursor-pointer">Accessibility</span>
-            <span className="hover:underline cursor-pointer">Ads info</span>
             <span>© 2026 IdeaX Corp.</span>
           </div>
         </div>
