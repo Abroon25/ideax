@@ -14,14 +14,9 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [savedAccounts, setSavedAccounts] = useState([]);
 
-  // Safely read from LocalStorage
   const readSaved = () => {
-    try {
-      const data = localStorage.getItem('savedAccounts');
-      return data ? JSON.parse(data) : [];
-    } catch {
-      return [];
-    }
+    try { return JSON.parse(localStorage.getItem('savedAccounts') || '[]'); }
+    catch { return []; }
   };
 
   const writeSaved = (list) => {
@@ -30,21 +25,25 @@ export const AuthProvider = ({ children }) => {
   };
 
   const upsertAccount = (userData, accessToken, refreshToken) => {
-    if (!userData || !userData.username) return;
     const list = readSaved();
-    const idx = list.findIndex(a => a?.user?.username === userData.username);
+    const idx = list.findIndex(a => a.user.username === userData.username);
     const entry = { user: userData, accessToken, refreshToken };
-    
-    if (idx >= 0) list[idx] = entry; // Update existing
-    else list.push(entry);           // Add new
-    
+    if (idx >= 0) list[idx] = entry;
+    else list.push(entry);
     writeSaved(list);
+  };
+
+  const snapshotCurrentAccount = () => {
+    if (!user) return;
+    // ★ Always read LATEST from localStorage (interceptor may have refreshed)
+    const at = localStorage.getItem('accessToken');
+    const rt = localStorage.getItem('refreshToken');
+    if (at && rt) upsertAccount(user, at, rt);
   };
 
   const fetchUser = useCallback(async () => {
     try {
-      const saved = readSaved();
-      setSavedAccounts(saved);
+      setSavedAccounts(readSaved());
 
       const token = localStorage.getItem('accessToken');
       if (!token) { setLoading(false); return; }
@@ -52,8 +51,11 @@ export const AuthProvider = ({ children }) => {
       const { data } = await api.get('/auth/me');
       setUser(data.user);
 
-      const refresh = localStorage.getItem('refreshToken');
-      upsertAccount(data.user, token, refresh);
+      // ★ KEY FIX: Read tokens AFTER the API call
+      // The interceptor may have refreshed them during /auth/me
+      const latestToken = localStorage.getItem('accessToken');
+      const latestRefresh = localStorage.getItem('refreshToken');
+      upsertAccount(data.user, latestToken, latestRefresh);
     } catch {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
@@ -75,8 +77,8 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
-  const signup = async (userData) => {
-    const { data } = await api.post('/auth/signup', userData);
+  const signup = async (formData) => {
+    const { data } = await api.post('/auth/signup', formData);
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user);
@@ -85,10 +87,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    try { await api.post('/auth/logout', { refreshToken: localStorage.getItem('refreshToken') }); } catch {}
+    try {
+      await api.post('/auth/logout', {
+        refreshToken: localStorage.getItem('refreshToken'),
+      });
+    } catch {}
 
     if (user) {
-      const remaining = readSaved().filter(a => a?.user?.username !== user.username);
+      const remaining = readSaved().filter(
+        a => a.user.username !== user.username
+      );
       writeSaved(remaining);
 
       if (remaining.length > 0) {
@@ -105,40 +113,46 @@ export const AuthProvider = ({ children }) => {
     window.location.href = '/login';
   };
 
-  const switchAccount = (targetUsername) => {
-    // 1. Get the list of all accounts currently saved
+  const switchAccount = (username) => {
+    // ★ Save current account's LATEST tokens before leaving
+    snapshotCurrentAccount();
+
     const list = readSaved();
-    
-    // 2. Find the exact account they clicked on
-    const target = list.find(a => a?.user?.username === targetUsername);
+    const target = list.find(a => a.user.username === username);
 
     if (!target) {
+      console.error('Account not found:', username, 'Available:', list.map(a => a.user.username));
       window.location.href = '/login';
       return;
     }
 
-    // 3. FORCE write the new tokens to localStorage instantly
+    // ★ Set new tokens and hard reload
     localStorage.setItem('accessToken', target.accessToken);
     localStorage.setItem('refreshToken', target.refreshToken);
-    
-    // 4. Reload page to force the entire React app to boot up using the new tokens
     window.location.href = '/';
   };
 
   const prepareAddAccount = () => {
+    snapshotCurrentAccount();
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     setUser(null);
     window.location.href = '/login';
   };
 
-  const updateUser = (updates) => setUser((p) => ({ ...p, ...updates }));
+  const updateUser = (updates) => setUser((prev) => ({ ...prev, ...updates }));
+
+  const otherAccounts = savedAccounts.filter(
+    a => !user || a.user.username !== user.username
+  );
 
   return (
-    <AuthContext.Provider value={{
-      user, loading, login, signup, logout, updateUser, fetchUser,
-      savedAccounts, switchAccount, prepareAddAccount
-    }}>
+    <AuthContext.Provider
+      value={{
+        user, loading, login, signup, logout, updateUser, fetchUser,
+        savedAccounts, otherAccounts, switchAccount, prepareAddAccount,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
