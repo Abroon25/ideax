@@ -191,6 +191,10 @@ model Idea {
   transactions    Transaction[]
   ndas            NDA[]
 
+  repostOfId  String?
+  repostOf    Idea?    @relation("Reposts", fields: [repostOfId], references: [id])
+  reposts     Idea[]   @relation("Reposts")
+  
 
   @@index([authorId])
   @@index([genreId])
