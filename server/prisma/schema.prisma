@@ -191,9 +191,9 @@ model Idea {
   transactions    Transaction[]
   ndas            NDA[]
 
-  repostOfId  String?
-  repostOf    Idea?    @relation("Reposts", fields: [repostOfId], references: [id])
-  reposts     Idea[]   @relation("Reposts")
+  repostOfId      String?
+  repostOf        Idea?    @relation("Reposts", fields: [repostOfId], references: [id])
+  repostedIdeas   Idea[]   @relation("Reposts")
   
 
   @@index([authorId])
