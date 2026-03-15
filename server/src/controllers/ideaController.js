@@ -349,27 +349,26 @@ const searchIdeas = async (req, res, next) => {
 
 const repostIdea = async (req, res, next) => {
   try {
-    const { id } = req.params; // ID of the idea being reposted
-    const { content } = req.body; // Optional quote content
+    const { id } = req.params;
+    const { content } = req.body;
     const userId = req.user.id;
 
     const originalIdea = await prisma.idea.findUnique({ where: { id } });
     if (!originalIdea) return res.status(404).json({ error: 'Original idea not found' });
 
-    // Check if user already reposted this EXACT idea without a quote
+    // Handle "Un-repost"
     if (!content) {
       const existingRepost = await prisma.idea.findFirst({
         where: { authorId: userId, repostOfId: id, content: '' }
       });
 
-      // If they already reposted, clicking again "undoes" the repost
       if (existingRepost) {
         await prisma.idea.delete({ where: { id: existingRepost.id } });
         return res.json({ reposted: false, message: 'Repost removed' });
       }
     }
 
-    // Create the Repost / Quote
+    // Create the Repost
     const newIdea = await prisma.idea.create({
       data: {
         content: content ? content.trim() : '',
@@ -378,7 +377,6 @@ const repostIdea = async (req, res, next) => {
         genreId: originalIdea.genreId,
         category: originalIdea.category,
         repostOfId: id,
-        // Reposts are free, no monetization on the wrapper itself
       },
       include: {
         author: { select: { id: true, username: true, displayName: true, avatar: true, tier: true } },
@@ -388,7 +386,7 @@ const repostIdea = async (req, res, next) => {
             attachments: true
           }
         },
-        _count: { select: { likes: true, comments: true, repostedIdeas: true } }
+        _count: { select: { likes: true, comments: true, repostedIdeas: true } } // <-- Uses your custom schema name
       }
     });
 
@@ -397,7 +395,16 @@ const repostIdea = async (req, res, next) => {
 };
 
 module.exports = { 
-  createIdea, getFeed, getIdeaById, updateIdea, deleteIdea, 
-  likeIdea, bookmarkIdea, addComment, expressInterest, 
-  getIdeaInterests, searchIdeas, repostIdea 
+  createIdea, 
+  updateIdea, 
+  getFeed, 
+  getIdeaById, 
+  deleteIdea, 
+  likeIdea, 
+  bookmarkIdea, 
+  addComment, 
+  expressInterest, 
+  getIdeaInterests, 
+  searchIdeas, 
+  repostIdea // <-- Exporting it here!
 };
