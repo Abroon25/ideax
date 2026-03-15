@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { createIdea, getFeed, getIdeaById, updateIdea, deleteIdea, likeIdea, bookmarkIdea, addComment, expressInterest, getIdeaInterests, searchIdeas } = require('../controllers/ideaController');
+const { createIdea, updateIdea, getFeed, getIdeaById, deleteIdea, likeIdea, bookmarkIdea, addComment, expressInterest, getIdeaInterests, searchIdeas, repostIdea } = require('../controllers/ideaController');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { attachTierLimits } = require('../middleware/tierCheck');
 const upload = require('../middleware/upload');
@@ -13,7 +13,7 @@ router.put('/:id', authenticate, attachTierLimits, updateIdea);
 router.delete('/:id', authenticate, deleteIdea);
 router.post('/:id/like', authenticate, likeIdea);
 router.post('/:id/bookmark', authenticate, bookmarkIdea);
-router.post('/:id/repost', auth, ideaController.repostIdea);
+router.post('/:id/repost', authenticate, repostIdea); // <-- FIXED: Changed 'auth' to 'authenticate'
 router.post('/:id/comment', authenticate, addComment);
 router.post('/:id/interest', authenticate, expressInterest);
 router.get('/:id/interests', authenticate, getIdeaInterests);
