@@ -64,6 +64,7 @@ function CircularProgress({ current, max }) {
 
 function QuotedIdea({ idea, onImageClick }) {
   if (!idea) return <div className="border border-dark-700 rounded-2xl p-3 mt-3 bg-dark-900/30 text-dark-400 text-sm">Idea deleted or unavailable</div>;
+  
   return (
     <div className="border border-dark-700 rounded-2xl p-3 mt-3 hover:bg-dark-800/30 transition-colors">
       <div className="flex items-center gap-2 text-sm mb-1">
@@ -71,11 +72,18 @@ function QuotedIdea({ idea, onImageClick }) {
         <span className="font-bold text-white">{idea.author.displayName}</span>
         <span className="text-dark-400">@{idea.author.username} · {timeAgo(idea.createdAt)}</span>
       </div>
-      <div className="text-[15px] text-white"><RichText text={truncateText(idea.content, 200)} /></div>
+      <div className="text-[15px] text-white">
+        <RichText text={truncateText(idea.content, 200)} />
+      </div>
       {idea.attachments && idea.attachments.length > 0 && (
         <div className="mt-2 rounded-xl overflow-hidden">
           {idea.attachments[0].fileType?.startsWith('image') && (
-            <img src={idea.attachments[0].fileUrl} onClick={(e) => { e.stopPropagation(); onImageClick(idea, idea.attachments[0].fileUrl); }} className="w-full max-h-40 object-cover" alt="attachment" />
+            <img 
+              src={idea.attachments[0].fileUrl} 
+              onClick={(e) => { e.stopPropagation(); onImageClick(idea, idea.attachments[0].fileUrl); }}
+              className="w-full max-h-40 object-cover" 
+              alt="attachment" 
+            />
           )}
         </div>
       )}
@@ -83,10 +91,12 @@ function QuotedIdea({ idea, onImageClick }) {
   );
 }
 
-function IdeaCard({ idea, onLike, onBookmark, onImageClick, onRepost, onReply }) {
+function IdeaCard({ idea, onLike, onBookmark, onImageClick, onRepost }) {
   var navigate = useNavigate();
+  
   const isPureRepost = !idea.content && idea.repostOfId;
   const displayIdea = isPureRepost ? idea.repostOf : idea;
+
   if (!displayIdea) return null;
 
   return (
@@ -106,6 +116,7 @@ function IdeaCard({ idea, onLike, onBookmark, onImageClick, onRepost, onReply })
           <span>Replying to thread</span>
         </div>
       )}
+
 
       <div className="flex gap-3">
         {/* NEW: Visual Thread Line */}
@@ -130,9 +141,13 @@ function IdeaCard({ idea, onLike, onBookmark, onImageClick, onRepost, onReply })
             <span className="text-dark-400 hover:underline">{timeAgo(displayIdea.createdAt)}</span>
           </div>
           
-          <div className="mt-1"><RichText text={displayIdea.content} /></div>
+          <div className="mt-1">
+            <RichText text={displayIdea.content} />
+          </div>
 
-          {!isPureRepost && displayIdea.repostOfId && <QuotedIdea idea={displayIdea.repostOf} onImageClick={onImageClick} />}
+          {!isPureRepost && displayIdea.repostOfId && (
+            <QuotedIdea idea={displayIdea.repostOf} onImageClick={onImageClick} />
+          )}
 
           <div className="flex items-center gap-2 mt-2">
             <span className="text-xs text-primary-500 hover:underline">{CATEGORY_ICONS[displayIdea.category]} {displayIdea.genre ? displayIdea.genre.name : ''}</span>
@@ -147,30 +162,39 @@ function IdeaCard({ idea, onLike, onBookmark, onImageClick, onRepost, onReply })
             <div className={`mt-3 grid gap-2 ${displayIdea.attachments.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
               {displayIdea.attachments.slice(0, 4).map(a => 
                 a.fileType?.startsWith('image') ? (
-                  <img key={a.id} src={a.fileUrl} onClick={(e) => { e.stopPropagation(); onImageClick(displayIdea, a.fileUrl); }} className="rounded-2xl border border-dark-700 object-cover w-full max-h-[300px] hover:opacity-80 transition-opacity" alt="attachment" />
+                  <img 
+                    key={a.id} 
+                    src={a.fileUrl} 
+                    onClick={(e) => { e.stopPropagation(); onImageClick(displayIdea, a.fileUrl); }}
+                    className="rounded-2xl border border-dark-700 object-cover w-full max-h-[300px] hover:opacity-80 transition-opacity" 
+                    alt="attachment" 
+                  />
                 ) : null
               )}
             </div>
           )}
 
           <div className="flex items-center justify-between mt-3 text-dark-400 max-w-md">
-            {/* NEW: Open Reply Modal */}
             <button onClick={e => { e.stopPropagation(); onReply(displayIdea); }} className="flex items-center gap-2 hover:text-primary-500 group transition-colors">
-              <div className="p-2 rounded-full group-hover:bg-primary-500/10"><HiOutlineChatAlt2 className="w-5 h-5" /></div>
-              <span className="text-sm">{formatNumber(displayIdea._count?.replies || 0)}</span>
-            </button>
+                <div className="p-2 rounded-full group-hover:bg-primary-500/10"><HiOutlineChatAlt2 className="w-5 h-5" /></div>
+                <span className="text-sm">{formatNumber(displayIdea._count?.replies || 0)}</span>
+              </button>
+            
             <button onClick={e => { e.stopPropagation(); onRepost(displayIdea.id); }} className="flex items-center gap-2 hover:text-green-500 group transition-colors">
               <div className="p-2 rounded-full group-hover:bg-green-500/10"><HiOutlineRefresh className="w-5 h-5" /></div>
               <span className="text-sm">{formatNumber(displayIdea._count?.repostedIdeas || 0)}</span>
             </button>
+
             <button onClick={e => { e.stopPropagation(); onLike(displayIdea.id); }} className={`flex items-center gap-2 group transition-colors ${displayIdea.isLiked ? 'text-pink-500' : 'hover:text-pink-500'}`}>
               <div className="p-2 rounded-full group-hover:bg-pink-500/10">{displayIdea.isLiked ? <HiHeart className="w-5 h-5" /> : <HiOutlineHeart className="w-5 h-5" />}</div>
               <span className="text-sm">{formatNumber(displayIdea._count?.likes)}</span>
             </button>
+
             <div className="flex items-center gap-2 group">
               <div className="p-2 rounded-full"><HiOutlineEye className="w-5 h-5" /></div>
               <span className="text-sm">{formatNumber(displayIdea.viewCount)}</span>
             </div>
+
             <button onClick={e => { e.stopPropagation(); onBookmark(displayIdea.id); }} className={`flex items-center gap-2 group transition-colors ${displayIdea.isBookmarked ? 'text-primary-500' : 'hover:text-primary-500'}`}>
               <div className="p-2 rounded-full group-hover:bg-primary-500/10">{displayIdea.isBookmarked ? <HiBookmark className="w-5 h-5" /> : <HiOutlineBM className="w-5 h-5" />}</div>
             </button>
@@ -198,7 +222,6 @@ export default function Home() {
   const [lightboxData, setLightboxData] = useState(null); 
   const [showLightboxSidebar, setShowLightboxSidebar] = useState(true);
 
-  // NEW: Reply Modal State
   const [replyingTo, setReplyingTo] = useState(null);
 
   const [page, setPage] = useState(1);
@@ -240,10 +263,8 @@ export default function Home() {
 
   const handlePost = async () => {
     if (!content.trim()) return toast.error('Write something!');
-    
-    // Genre is required for new posts, but inherited for replies
     if (!replyingTo && !selectedGenre) return toast.error('Select a genre');
-    
+        
     setPosting(true);
     const formData = new FormData();
     formData.append('content', content.trim());
@@ -264,7 +285,6 @@ export default function Home() {
       if (replyingTo) {
         setIdeas(prev => prev.map(i => i.id === replyingTo.id ? { ...i, _count: { ...i._count, replies: (i._count?.replies || 0) + 1 } } : i));
       }
-
       setContent(''); setSelectedGenre(''); setMonetizeType('NONE'); setAskingPrice(''); setMediaFiles([]); setReplyingTo(null);
     } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
     finally { setPosting(false); }
@@ -273,13 +293,16 @@ export default function Home() {
   const handleLike = (id) => {
     api.post(`/ideas/${id}/like`).then(res => {
       setIdeas(prev => prev.map(i => i.id === id ? { ...i, isLiked: res.data.liked, _count: { ...i._count, likes: i._count.likes + (res.data.liked ? 1 : -1) } } : i));
+      if (lightboxData && lightboxData.idea.id === id) {
+        setLightboxData(p => ({ ...p, idea: { ...p.idea, isLiked: res.data.liked, _count: { ...p.idea._count, likes: p.idea._count.likes + (res.data.liked ? 1 : -1) } } }));
+      }
     });
   };
 
   const handleBookmark = (id) => {
     api.post(`/ideas/${id}/bookmark`).then(res => {
       setIdeas(prev => prev.map(i => i.id === id ? { ...i, isBookmarked: res.data.bookmarked } : i));
-      toast.success(res.data.bookmarked ? 'Bookmarked' : 'Removed');
+      toast.success(res.data.bookmarked ? 'Bookmarked' : 'Removed from Bookmarks');
     });
   };
 
@@ -292,37 +315,54 @@ export default function Home() {
         toast.success('Repost removed');
         setIdeas(prev => prev.filter(i => !(i.repostOfId === id && i.authorId === user.id && !i.content)));
       }
-    }).catch(() => toast.error('Failed'));
+    }).catch(() => toast.error('Failed to repost'));
   };
 
   useEffect(() => {
-    if (lightboxData || replyingTo) document.body.style.overflow = 'hidden';
+    if (lightboxData) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = 'unset';
-  }, [lightboxData, replyingTo]);
+  }, [lightboxData]);
 
   return (
     <div>
-      {/* Lightbox Modal */}
       {lightboxData && (
         <div className="fixed inset-0 z-[200] flex bg-black/90 backdrop-blur-sm">
-          <button onClick={() => setLightboxData(null)} className="absolute top-4 left-4 z-[210] p-3 rounded-full hover:bg-white/10 text-white transition-colors"><HiOutlineX className="w-6 h-6" /></button>
-          <button onClick={() => setShowLightboxSidebar(!showLightboxSidebar)} className="absolute top-4 right-4 z-[210] p-3 rounded-full hover:bg-white/10 text-white transition-colors lg:hidden"><HiOutlineChevronDoubleRight className="w-6 h-6" /></button>
+          <button onClick={() => setLightboxData(null)} className="absolute top-4 left-4 z-[210] p-3 rounded-full hover:bg-white/10 text-white transition-colors">
+            <HiOutlineX className="w-6 h-6" />
+          </button>
+          <button onClick={() => setShowLightboxSidebar(!showLightboxSidebar)} className="absolute top-4 right-4 z-[210] p-3 rounded-full hover:bg-white/10 text-white transition-colors lg:hidden">
+            <HiOutlineChevronDoubleRight className="w-6 h-6" />
+          </button>
           <div className="flex-1 flex items-center justify-center p-4 cursor-zoom-out" onClick={() => setLightboxData(null)}>
              <img src={lightboxData.imageUrl} className="max-w-full max-h-full object-contain shadow-2xl" onClick={e => e.stopPropagation()} alt="Fullscreen" />
           </div>
           {showLightboxSidebar && (
             <div className="w-[350px] bg-dark-950 border-l border-dark-700 h-full overflow-y-auto flex flex-col shadow-2xl z-[205] absolute lg:relative right-0">
               <div className="p-4 border-b border-dark-700">
-                 <div className="flex items-center gap-3"><Avatar src={lightboxData.idea.author.avatar} name={lightboxData.idea.author.displayName} /><div><p className="font-bold text-white">{lightboxData.idea.author.displayName}</p><p className="text-dark-400 text-[15px]">@{lightboxData.idea.author.username}</p></div></div>
+                 <div className="flex items-center gap-3">
+                   <Avatar src={lightboxData.idea.author.avatar} name={lightboxData.idea.author.displayName} />
+                   <div>
+                     <p className="font-bold text-white hover:underline cursor-pointer">{lightboxData.idea.author.displayName}</p>
+                     <p className="text-dark-400 text-[15px]">@{lightboxData.idea.author.username}</p>
+                   </div>
+                 </div>
                  <div className="mt-4 text-[15px] leading-relaxed text-white whitespace-pre-wrap"><RichText text={lightboxData.idea.content} /></div>
+                 <p className="text-dark-400 text-[15px] mt-4">{timeAgo(lightboxData.idea.createdAt)}</p>
+                 <div className="flex items-center justify-around mt-4 pt-4 border-t border-dark-700">
+                    <button className="text-dark-400 flex items-center gap-2"><HiOutlineChatAlt2 className="w-5 h-5"/>{lightboxData.idea._count?.comments}</button>
+                    <button onClick={() => handleLike(lightboxData.idea.id)} className={`flex items-center gap-2 ${lightboxData.idea.isLiked ? 'text-pink-500' : 'text-dark-400 hover:text-pink-500'}`}>
+                      {lightboxData.idea.isLiked ? <HiHeart className="w-5 h-5"/> : <HiOutlineHeart className="w-5 h-5"/>}{lightboxData.idea._count?.likes}
+                    </button>
+                    <button className="text-dark-400 hover:text-primary-500"><HiOutlineShare className="w-5 h-5"/></button>
+                 </div>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* NEW: Reply Modal (Twitter Style) */}
-      {replyingTo && (
+            {/* NEW: Reply Modal (Twitter Style) */}
+            {replyingTo && (
         <div className="fixed inset-0 z-[150] flex items-start sm:items-center justify-center bg-dark-950/80 sm:bg-dark-950/60 backdrop-blur-sm pt-0 sm:pt-10">
           <div className="bg-dark-950 sm:bg-dark-900 w-full max-w-[600px] h-full sm:h-auto sm:rounded-2xl shadow-2xl flex flex-col relative sm:border border-dark-700">
             <div className="flex items-center justify-between px-4 py-3 border-b border-dark-700 sm:border-transparent">
@@ -357,9 +397,10 @@ export default function Home() {
         </div>
       )}
 
-      <div className="sticky top-0 z-30 bg-dark-950/80 backdrop-blur-md border-b border-dark-700 px-4 py-3"><h1 className="text-xl font-bold">Home</h1></div>
+      <div className="sticky top-0 z-30 bg-dark-950/80 backdrop-blur-md border-b border-dark-700 px-4 py-3 cursor-pointer" onClick={() => window.scrollTo({top:0, behavior:'smooth'})}>
+        <h1 className="text-xl font-bold">Home</h1>
+      </div>
 
-      {/* Main Feed Composer */}
       <div className="border-b border-dark-700 p-4 flex gap-3">
         <Avatar src={user?.avatar} name={user?.displayName} />
         <div className="flex-1">
@@ -368,19 +409,45 @@ export default function Home() {
             {genres.map(g => <option key={g.id} value={g.id} className="bg-dark-900 text-white">{g.icon} {g.name}</option>)}
           </select>
           <textarea value={content} onChange={e => setContent(e.target.value)} placeholder="What is happening?!" className="w-full bg-transparent text-xl placeholder-dark-500 resize-none focus:outline-none min-h-[60px]" maxLength={limits.maxChars} />
-          {mediaFiles.length > 0 && (<div className="flex gap-2 py-2 overflow-x-auto">{mediaFiles.map((m, i) => (<div key={i} className="relative flex-shrink-0"><img src={m.preview} className="h-32 rounded-2xl object-cover" /><button onClick={() => removeMedia(i)} className="absolute top-1 right-1 bg-dark-950/80 p-1 rounded-full text-white"><HiOutlineX /></button></div>))}</div>)}
+          {mediaFiles.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto py-2">
+              {mediaFiles.map((m, i) => (
+                <div key={i} className="relative flex-shrink-0">
+                  <img src={m.preview} alt="preview" className="h-32 rounded-2xl object-cover" />
+                  <button onClick={() => removeMedia(i)} className="absolute top-1 right-1 bg-dark-950/80 p-1 rounded-full text-white hover:bg-dark-800 transition"><HiOutlineX /></button>
+                </div>
+              ))}
+            </div>
+          )}
+          {monetizeType !== 'NONE' && (
+            <div className="bg-dark-900 p-3 rounded-xl mb-3 border border-dark-700">
+              <p className="text-xs text-dark-400 font-bold mb-2">MONETIZATION: {MONETIZE_LABELS[monetizeType]}</p>
+              {monetizeType === 'MONEY' && <input type="number" value={askingPrice} onChange={e => setAskingPrice(e.target.value)} placeholder="Asking Price (INR)" className="w-full bg-transparent border-b border-dark-600 focus:border-primary-500 focus:outline-none py-1" />}
+            </div>
+          )}
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-dark-700">
-            <div className="flex gap-1 text-primary-500"><button onClick={() => fileInputRef.current.click()} className="p-2 rounded-full hover:bg-primary-500/10"><HiOutlinePhotograph className="w-5 h-5" /></button><input type="file" ref={fileInputRef} hidden accept="image/*" multiple onChange={handleMediaSelect} /></div>
-            <div className="flex items-center gap-3">{content.length > 0 && <CircularProgress current={content.length} max={limits.maxChars} />}<button onClick={handlePost} disabled={!content.trim() || !selectedGenre || posting} className="bg-primary-500 hover:bg-primary-600 text-white font-bold py-1.5 px-5 rounded-full disabled:opacity-50">Post</button></div>
+            <div className="flex gap-1 text-primary-500">
+              <button onClick={() => fileInputRef.current.click()} className="p-2 rounded-full hover:bg-primary-500/10 transition-colors tooltip"><HiOutlinePhotograph className="w-5 h-5" /></button>
+              <input type="file" ref={fileInputRef} hidden accept="image/*" multiple onChange={handleMediaSelect} />
+              <button onClick={() => setMonetizeType(monetizeType === 'NONE' ? 'MONEY' : 'NONE')} className="p-2 rounded-full hover:bg-primary-500/10 transition-colors"><HiOutlineCash className="w-5 h-5" /></button>
+            </div>
+            <div className="flex items-center gap-3">
+              {content.length > 0 && <CircularProgress current={content.length} max={limits.maxChars} />}
+              <button onClick={handlePost} disabled={!content.trim() || posting} className="bg-primary-500 hover:bg-primary-600 text-white font-bold py-1.5 px-5 rounded-full disabled:opacity-50">
+                {posting ? 'Posting...' : 'Post'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {loading && ideas.length === 0 ? <div className="py-20 flex justify-center"><div className="w-8 h-8 border-2 border-dark-600 border-t-primary-500 rounded-full animate-spin" /></div> : (
+      {loading && ideas.length === 0 ? (
+        <div className="py-20 flex justify-center"><div className="w-8 h-8 border-2 border-dark-600 border-t-primary-500 rounded-full animate-spin" /></div>
+      ) : (
         <>
           {ideas.map((idea, index) => {
-            if (ideas.length === index + 1) return <div ref={lastIdeaRef} key={idea.id}><IdeaCard idea={idea} onLike={handleLike} onBookmark={handleBookmark} onImageClick={(idea, url) => setLightboxData({idea, imageUrl: url})} onRepost={handleRepost} onReply={setReplyingTo} /></div>;
-            return <IdeaCard key={idea.id} idea={idea} onLike={handleLike} onBookmark={handleBookmark} onImageClick={(idea, url) => setLightboxData({idea, imageUrl: url})} onRepost={handleRepost} onReply={setReplyingTo} />;
+            if (ideas.length === index + 1) return <div ref={lastIdeaRef} key={idea.id}><IdeaCard idea={idea} onLike={handleLike} onBookmark={handleBookmark} onImageClick={(idea, url) => setLightboxData({idea, imageUrl: url})} onRepost={handleRepost} /></div>;
+            return <IdeaCard key={idea.id} idea={idea} onLike={handleLike} onBookmark={handleBookmark} onImageClick={(idea, url) => setLightboxData({idea, imageUrl: url})} onRepost={handleRepost} />;
           })}
         </>
       )}
