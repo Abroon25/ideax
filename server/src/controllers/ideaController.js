@@ -139,15 +139,36 @@ const getIdeaById = async (req, res, next) => {
     const idea = await prisma.idea.findUnique({
       where: { id: req.params.id },
       include: {
-        author: { select: { id: true, username: true, displayName: true, avatar: true, bio: true, tier: true,
-          _count: { select: { ideas: true, followers: true, following: true } } } },
-        genre: true, attachments: true,
-        comments: {
-          include: { user: { select: { id: true, username: true, displayName: true, avatar: true } },
-            replies: { include: { user: { select: { id: true, username: true, displayName: true, avatar: true } } }, orderBy: { createdAt: 'asc' } } },
-          where: { parentId: null }, orderBy: { createdAt: 'desc' },
+        author: {
+          select: {
+            id: true, username: true, displayName: true, avatar: true, bio: true, tier: true,
+            _count: { select: { ideas: true, followers: true, following: true } },
+          },
         },
-        _count: { select: { likes: true, comments: true, bookmarks: true, interests: true } },
+        genre: true,
+        attachments: true,
+        // ★ Add repostOf
+        repostOf: {
+          include: {
+            author: { select: { id: true, username: true, displayName: true, avatar: true, tier: true } },
+            genre: true,
+            attachments: true,
+            _count: { select: { likes: true, comments: true, repostedIdeas: true } },
+          },
+        },
+        comments: {
+          include: {
+            user: { select: { id: true, username: true, displayName: true, avatar: true } },
+            replies: {
+              include: { user: { select: { id: true, username: true, displayName: true, avatar: true } } },
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+          where: { parentId: null },
+          orderBy: { createdAt: 'desc' },
+        },
+        // ★ Add repostedIdeas to count
+        _count: { select: { likes: true, comments: true, bookmarks: true, interests: true, repostedIdeas: true } },
         ...(req.user ? {
           likes: { where: { userId: req.user.id }, select: { id: true } },
           bookmarks: { where: { userId: req.user.id }, select: { id: true } },
@@ -160,9 +181,14 @@ const getIdeaById = async (req, res, next) => {
     await prisma.idea.update({ where: { id: req.params.id }, data: { viewCount: { increment: 1 } } });
 
     res.json({
-      idea: { ...idea, isLiked: req.user ? idea.likes?.length > 0 : false,
+      idea: {
+        ...idea,
+        isLiked: req.user ? idea.likes?.length > 0 : false,
         isBookmarked: req.user ? idea.bookmarks?.length > 0 : false,
-        isOwner: req.user ? idea.authorId === req.user.id : false, likes: undefined, bookmarks: undefined },
+        isOwner: req.user ? idea.authorId === req.user.id : false,
+        likes: undefined,
+        bookmarks: undefined,
+      },
     });
   } catch (error) { next(error); }
 };
@@ -372,10 +398,9 @@ const repostIdea = async (req, res, next) => {
     const originalIdea = await prisma.idea.findUnique({ where: { id } });
     if (!originalIdea) return res.status(404).json({ error: 'Original idea not found' });
 
-    // Handle "Un-repost"
     if (!content) {
       const existingRepost = await prisma.idea.findFirst({
-        where: { authorId: userId, repostOfId: id, content: '' }
+        where: { authorId: userId, repostOfId: id, content: '' },
       });
 
       if (existingRepost) {
@@ -384,7 +409,6 @@ const repostIdea = async (req, res, next) => {
       }
     }
 
-    // Create the Repost
     const newIdea = await prisma.idea.create({
       data: {
         content: content ? content.trim() : '',
@@ -399,11 +423,16 @@ const repostIdea = async (req, res, next) => {
         repostOf: {
           include: {
             author: { select: { id: true, username: true, displayName: true, avatar: true, tier: true } },
-            attachments: true
-          }
+            genre: true,
+            attachments: true,
+            // ★ Use renamed field
+            _count: { select: { likes: true, comments: true, repostedIdeas: true } },
+          },
         },
-        _count: { select: { likes: true, comments: true, repostedIdeas: true } } // <-- Uses your custom schema name
-      }
+        genre: true,
+        // ★ Use renamed field
+        _count: { select: { likes: true, comments: true, repostedIdeas: true } },
+      },
     });
 
     res.status(201).json({ reposted: true, idea: newIdea });
