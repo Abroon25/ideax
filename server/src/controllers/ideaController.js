@@ -5,39 +5,57 @@ const { createNotification } = require('../services/notificationService');
 
 const createIdea = async (req, res, next) => {
   try {
-    const { content, genreId, monetizeType = 'NONE', askingPrice, profitSharePct, shareHoldingPct,
-      extraCharsPaid = 0, extraStoragePaid = 0, monetizePaid = false } = req.body;
+    const { content, genreId, monetizeType = 'NONE', askingPrice, profitSharePct, shareHoldingPct, parentIdeaId } = req.body;
     const userId = req.user.id;
-    const tierLimits = TIER_LIMITS[req.user.tier];
+    const tierLimits = TIER_LIMITS[req.user.tier] || TIER_LIMITS.FREE;
 
     if (!content || !content.trim()) return res.status(400).json({ error: 'Content required' });
-    if (!genreId) return res.status(400).json({ error: 'Genre required' });
+    
+    // If it's NOT a reply, it must have a genre. Replies inherit the parent's genre.
+    let targetGenreId = genreId;
+    let targetCategory = null;
 
-    const effectiveCharLimit = tierLimits.maxChars + (parseInt(extraCharsPaid || 0) * PAY_PER_POST.charsUnit);
-    if (content.length > effectiveCharLimit) {
-      return res.status(400).json({ error: 'Exceeds character limit. Max: ' + effectiveCharLimit, payPerPostAvailable: true });
+    if (parentIdeaId) {
+      const parentIdea = await prisma.idea.findUnique({ where: { id: parentIdeaId } });
+      if (!parentIdea) return res.status(404).json({ error: 'Parent idea not found' });
+      targetGenreId = parentIdea.genreId;
+      targetCategory = parentIdea.category;
+    } else {
+      if (!genreId) return res.status(400).json({ error: 'Genre required for new ideas' });
+      const genre = await prisma.genre.findUnique({ where: { id: genreId } });
+      if (!genre) return res.status(404).json({ error: 'Genre not found' });
+      targetCategory = genre.category;
     }
 
-    if (monetizeType !== 'NONE' && !tierLimits.monetizeOptions.includes(monetizeType) && !monetizePaid) {
-      return res.status(403).json({ error: 'Monetize type not available in your tier', payPerPostAvailable: req.user.tier === 'FREE' });
+    if (content.length > tierLimits.maxChars) {
+      return res.status(400).json({ error: 'Exceeds character limit' });
     }
 
-    const genre = await prisma.genre.findUnique({ where: { id: genreId } });
-    if (!genre) return res.status(404).json({ error: 'Genre not found' });
+    if (monetizeType !== 'NONE' && !tierLimits.monetizeOptions.includes(monetizeType)) {
+      return res.status(403).json({ error: 'Monetize type not available in your tier' });
+    }
 
     const idea = await prisma.idea.create({
       data: {
-        content: content.trim(), charCount: content.length, authorId: userId, genreId,
-        category: genre.category, monetizeType,
+        content: content.trim(), 
+        charCount: content.length, 
+        authorId: userId, 
+        genreId: targetGenreId,
+        category: targetCategory, 
+        monetizeType,
         askingPrice: askingPrice ? parseFloat(askingPrice) : null,
         profitSharePct: profitSharePct ? parseFloat(profitSharePct) : null,
         shareHoldingPct: shareHoldingPct ? parseFloat(shareHoldingPct) : null,
-        extraCharsPaid: parseInt(extraCharsPaid) || 0,
-        extraStoragePaid: parseInt(extraStoragePaid) || 0,
-        monetizePaid: Boolean(monetizePaid),
+        parentIdeaId: parentIdeaId || null // NEW: Links this post to its parent
       },
+      include: {
+        author: { select: { id: true, username: true, displayName: true, avatar: true, tier: true } },
+        genre: true, 
+        _count: { select: { likes: true, comments: true, bookmarks: true, repostedIdeas: true, replies: true } }
+      }
     });
 
+    // Handle Attachments
     if (req.files && req.files.length > 0) {
       const attachments = [];
       for (const file of req.files) {
@@ -54,12 +72,13 @@ const createIdea = async (req, res, next) => {
       if (attachments.length > 0) await prisma.attachment.createMany({ data: attachments });
     }
 
+    // If it's a reply, fetch the complete object to return
     const completeIdea = await prisma.idea.findUnique({
       where: { id: idea.id },
       include: {
         author: { select: { id: true, username: true, displayName: true, avatar: true, tier: true } },
         genre: true, attachments: true,
-        _count: { select: { likes: true, comments: true, bookmarks: true } },
+        _count: { select: { likes: true, comments: true, bookmarks: true, repostedIdeas: true, replies: true } },
       },
     });
 
@@ -139,36 +158,29 @@ const getIdeaById = async (req, res, next) => {
     const idea = await prisma.idea.findUnique({
       where: { id: req.params.id },
       include: {
-        author: {
-          select: {
-            id: true, username: true, displayName: true, avatar: true, bio: true, tier: true,
-            _count: { select: { ideas: true, followers: true, following: true } },
-          },
+        author: { select: { id: true, username: true, displayName: true, avatar: true, bio: true, tier: true,
+          _count: { select: { ideas: true, followers: true, following: true } } } },
+        genre: true, attachments: true,
+        // Fetch the parent idea if this is a reply
+        parentIdea: {
+          include: {
+            author: { select: { id: true, username: true, displayName: true, avatar: true, tier: true } }
+          }
         },
-        genre: true,
-        attachments: true,
-        // ★ Add repostOf
-        repostOf: {
+        // Fetch all replies to form the thread
+        replies: {
           include: {
             author: { select: { id: true, username: true, displayName: true, avatar: true, tier: true } },
-            genre: true,
             attachments: true,
-            _count: { select: { likes: true, comments: true, repostedIdeas: true } },
+            _count: { select: { likes: true, comments: true, repostedIdeas: true, replies: true } },
+            ...(req.user ? {
+              likes: { where: { userId: req.user.id }, select: { id: true } },
+              bookmarks: { where: { userId: req.user.id }, select: { id: true } },
+            } : {})
           },
+          orderBy: { createdAt: 'asc' }
         },
-        comments: {
-          include: {
-            user: { select: { id: true, username: true, displayName: true, avatar: true } },
-            replies: {
-              include: { user: { select: { id: true, username: true, displayName: true, avatar: true } } },
-              orderBy: { createdAt: 'asc' },
-            },
-          },
-          where: { parentId: null },
-          orderBy: { createdAt: 'desc' },
-        },
-        // ★ Add repostedIdeas to count
-        _count: { select: { likes: true, comments: true, bookmarks: true, interests: true, repostedIdeas: true } },
+        _count: { select: { likes: true, comments: true, bookmarks: true, interests: true, repostedIdeas: true, replies: true } },
         ...(req.user ? {
           likes: { where: { userId: req.user.id }, select: { id: true } },
           bookmarks: { where: { userId: req.user.id }, select: { id: true } },
@@ -181,14 +193,9 @@ const getIdeaById = async (req, res, next) => {
     await prisma.idea.update({ where: { id: req.params.id }, data: { viewCount: { increment: 1 } } });
 
     res.json({
-      idea: {
-        ...idea,
-        isLiked: req.user ? idea.likes?.length > 0 : false,
+      idea: { ...idea, isLiked: req.user ? idea.likes?.length > 0 : false,
         isBookmarked: req.user ? idea.bookmarks?.length > 0 : false,
-        isOwner: req.user ? idea.authorId === req.user.id : false,
-        likes: undefined,
-        bookmarks: undefined,
-      },
+        isOwner: req.user ? idea.authorId === req.user.id : false, likes: undefined, bookmarks: undefined },
     });
   } catch (error) { next(error); }
 };
