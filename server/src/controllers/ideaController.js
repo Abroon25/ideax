@@ -347,7 +347,7 @@ const searchIdeas = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-const repostIdea = async (req, res, next) => {
+const getFeed = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { content } = req.body;
