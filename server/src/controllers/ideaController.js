@@ -347,4 +347,57 @@ const searchIdeas = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-module.exports = { createIdea, getFeed, getIdeaById, updateIdea, deleteIdea, likeIdea, bookmarkIdea, addComment, expressInterest, getIdeaInterests, searchIdeas };
+const repostIdea = async (req, res, next) => {
+  try {
+    const { id } = req.params; // ID of the idea being reposted
+    const { content } = req.body; // Optional quote content
+    const userId = req.user.id;
+
+    const originalIdea = await prisma.idea.findUnique({ where: { id } });
+    if (!originalIdea) return res.status(404).json({ error: 'Original idea not found' });
+
+    // Check if user already reposted this EXACT idea without a quote
+    if (!content) {
+      const existingRepost = await prisma.idea.findFirst({
+        where: { authorId: userId, repostOfId: id, content: '' }
+      });
+
+      // If they already reposted, clicking again "undoes" the repost
+      if (existingRepost) {
+        await prisma.idea.delete({ where: { id: existingRepost.id } });
+        return res.json({ reposted: false, message: 'Repost removed' });
+      }
+    }
+
+    // Create the Repost / Quote
+    const newIdea = await prisma.idea.create({
+      data: {
+        content: content ? content.trim() : '',
+        charCount: content ? content.trim().length : 0,
+        authorId: userId,
+        genreId: originalIdea.genreId,
+        category: originalIdea.category,
+        repostOfId: id,
+        // Reposts are free, no monetization on the wrapper itself
+      },
+      include: {
+        author: { select: { id: true, username: true, displayName: true, avatar: true, tier: true } },
+        repostOf: {
+          include: {
+            author: { select: { id: true, username: true, displayName: true, avatar: true, tier: true } },
+            attachments: true
+          }
+        },
+        _count: { select: { likes: true, comments: true, repostedIdeas: true } }
+      }
+    });
+
+    res.status(201).json({ reposted: true, idea: newIdea });
+  } catch (error) { next(error); }
+};
+
+module.exports = { 
+  createIdea, getFeed, getIdeaById, updateIdea, deleteIdea, 
+  likeIdea, bookmarkIdea, addComment, expressInterest, 
+  getIdeaInterests, searchIdeas, repostIdea 
+};
