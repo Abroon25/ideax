@@ -13,6 +13,7 @@ router.put('/:id', authenticate, attachTierLimits, updateIdea);
 router.delete('/:id', authenticate, deleteIdea);
 router.post('/:id/like', authenticate, likeIdea);
 router.post('/:id/bookmark', authenticate, bookmarkIdea);
+router.post('/:id/repost', auth, ideaController.repostIdea);
 router.post('/:id/comment', authenticate, addComment);
 router.post('/:id/interest', authenticate, expressInterest);
 router.get('/:id/interests', authenticate, getIdeaInterests);
