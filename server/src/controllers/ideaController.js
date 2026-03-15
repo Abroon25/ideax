@@ -92,8 +92,19 @@ const getFeed = async (req, res, next) => {
         where,
         include: {
           author: { select: { id: true, username: true, displayName: true, avatar: true, tier: true } },
-          genre: true, attachments: true,
-          _count: { select: { likes: true, comments: true, bookmarks: true } },
+          genre: true,
+          attachments: true,
+          // ★ Include repostOf with its author and attachments
+          repostOf: {
+            include: {
+              author: { select: { id: true, username: true, displayName: true, avatar: true, tier: true } },
+              genre: true,
+              attachments: true,
+              _count: { select: { likes: true, comments: true, repostedIdeas: true } },
+            },
+          },
+          // ★ Add repostedIdeas to count
+          _count: { select: { likes: true, comments: true, bookmarks: true, repostedIdeas: true } },
           ...(req.user ? {
             likes: { where: { userId: req.user.id }, select: { id: true } },
             bookmarks: { where: { userId: req.user.id }, select: { id: true } },
@@ -108,12 +119,17 @@ const getFeed = async (req, res, next) => {
       ...idea,
       isLiked: req.user ? (idea.likes?.length > 0) : false,
       isBookmarked: req.user ? (idea.bookmarks?.length > 0) : false,
-      likes: undefined, bookmarks: undefined,
+      likes: undefined,
+      bookmarks: undefined,
     }));
 
     res.json({
       ideas: transformed,
-      pagination: { page: parseInt(page), limit: parseInt(limit), total, totalPages: Math.ceil(total / parseInt(limit)), hasMore: skip + parseInt(limit) < total },
+      pagination: {
+        page: parseInt(page), limit: parseInt(limit), total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+        hasMore: skip + parseInt(limit) < total,
+      },
     });
   } catch (error) { next(error); }
 };
@@ -347,7 +363,7 @@ const searchIdeas = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-const getFeed = async (req, res, next) => {
+const repostIdea = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { content } = req.body;
